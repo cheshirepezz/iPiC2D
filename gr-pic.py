@@ -164,14 +164,14 @@ for t in range(Nt): # count {0, Nt-1}
 
     # BEGIN : spatial update loops for Ey and Ex fields
     Ex1[x1s:x1e, x2s:x2e] += dt * (1./(2.*dx2*J[x1s:x1e, x2s:x2e]))\
-                                *    (gx1x3[x1s+1:x1e+1, x2s+1:x2e+1]*Bx1[x1s+1:x1e+1, x2s+1:x2e+1] - gx1x3[x1s:x1e, x2s:x2e]*Bx1[x1s:x1e, x2s:x2e]\
-                                +     gx1x3[x1s:x1e, x2s+1:x2e+1]*Bx1[x1s:x1e, x2s+1:x2e+1] - gx1x3[x1s:x1e, x2s:x2e]*Bx1[x1s:x1e, x2s:x2e]\
-                                +     gx2x3[x1s:x1e, x2s+1:x2e+1]*Bx2[x1s:x1e, x2s+1:x2e+1] - gx2x3[x1s:x1e, x2s-1:x2e-1]*Bx2[x1s:x1e, x2s-1:x2e-1]\
+                                *    (gx3x1[x1s+1:x1e+1, x2s+1:x2e+1]*Bx1[x1s+1:x1e+1, x2s+1:x2e+1] - gx3x1[x1s:x1e, x2s:x2e]*Bx1[x1s:x1e, x2s:x2e]\
+                                +     gx3x1[x1s:x1e, x2s+1:x2e+1]*Bx1[x1s:x1e, x2s+1:x2e+1] - gx3x1[x1s:x1e, x2s:x2e]*Bx1[x1s:x1e, x2s:x2e]\
+                                +     gx3x2[x1s:x1e, x2s+1:x2e+1]*Bx2[x1s:x1e, x2s+1:x2e+1] - gx3x2[x1s:x1e, x2s-1:x2e-1]*Bx2[x1s:x1e, x2s-1:x2e-1]\
                                 + 2.*(gx3x3[x1s:x1e, x2s+1:x2e+1]*B[x3x1s:x1e, x2s+1:x2e+1] - gx3x3[x1s:x1e, x2s:x2e]*Bx3[x3x1s:x1e, x2s:x2e]))
     Ex2[x1s:x1e, x2s:x2e] -= dt * (1./(2.*dx1*J[x1s:x1e, x2s:x2e])\
-                                *    (gx1x3[x1s+1:x1e+1, x2s:x2e]*Bx1[x1s+1:x1e+1, x2s:x2e] - gx1x3[x1s-1:x1e-1, x2s:x2e]*Bx1[x1s-1:x1e-1, x2s:x2e]\
-                                +     gx2x3[x1s+1:x1e+1, x2s:x2e]*Bx2[x1s+1:x1e+1, x2s:x2e] - gx2x3[x1s:x1e, x2s:x2e]*Bx2[x2x1s:x1e, x2s:x2e]\
-                                +     gx2x3[x1s+1:x1e+1, x2s:x2e]*Bx2[x1s+1:x1e+1, x2s:x2e] - gx2x3[x1s:x1e, x2s-1:x2e-1]*Bx2[x2x1s:x1e, x2s-1:x2e-1]\
+                                *    (gx3x1[x1s+1:x1e+1, x2s:x2e]*Bx1[x1s+1:x1e+1, x2s:x2e] - gx3x1[x1s-1:x1e-1, x2s:x2e]*Bx1[x1s-1:x1e-1, x2s:x2e]\
+                                +     gx3x2[x1s+1:x1e+1, x2s:x2e]*Bx2[x1s+1:x1e+1, x2s:x2e] - gx3x2[x1s:x1e, x2s:x2e]*Bx2[x2x1s:x1e, x2s:x2e]\
+                                +     gx3x2[x1s+1:x1e+1, x2s:x2e]*Bx2[x1s+1:x1e+1, x2s:x2e] - gx3x2[x1s:x1e, x2s-1:x2e-1]*Bx2[x2x1s:x1e, x2s-1:x2e-1]\
                                 + 2.*(gx3x3[x1s+1:x1e+1, x2s:x2e]*Bx3[x1s+1:x1e+1, x2s:x2e] - gx3x3[x1s:x1e, x2s:x2e]*Bx3[x2x1s:x1e, x2s:x2e]))  
     # END : spatial update loops for Ex1 and Ex2 fields
     
@@ -191,8 +191,8 @@ for t in range(Nt): # count {0, Nt-1}
     Ex2[:, -1] = Ex2_b[:,0]  # top = bottom
 
     # BEGIN : spatial update loops for Bz fields
-    Bx3[x1s:x1e, x2s:x2e] -= dt * (1./(2.*dx*J[x1s:x1e, x2s:x2e])\
-                                *    (gx1x2[x1s+1:x1e+1, x2s:x2e]*Bx1[x1s+1:x1e+1, x2s:x2e] - gx1x2[x1s-1:x1e-1, x2s:x2e]*Bx1[x1s-1:x1e-1, x2s:x2e]\
+    Bx3[x1s:x1e, x2s:x2e] -= dt * (1./(2.*dx1*J[x1s:x1e, x2s:x2e])\
+                                *    (gx2x1[x1s+1:x1e+1, x2s:x2e]*Bx1[x1s+1:x1e+1, x2s:x2e] - gx2x1[x1s-1:x1e-1, x2s:x2e]*Bx1[x1s-1:x1e-1, x2s:x2e]\
                                 + 2.*(gx2x2[x1s:x1e, x2s:x2e]*Bx2[x1s:x1e, x2s:x2e] - gx2x2[x1s-1:x1e-1, x2s:x2e]*Bx2[x1s-1:x1e-1, x2s:x2e])\
                                 + 2.*(gx2x3[x1s+1:x1e+1, x2s:x2e]*Bx3[x1s+1:x1e+1, x2s:x2e] - gx2x3[x1s-1:x1e-1, x2s:x2e]*Bx3[x1s-1:x1e-1, x2s:x2e]))\
                                 + 1./(2.*dx2*J[x1s:x1e, x2s:x2e])\
