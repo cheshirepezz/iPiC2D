@@ -1,2 +1,2 @@
 # GR-PiC2D
-General Relativity PiC Simulation in 2D
+General Relativity PiC simulation in 2D
