@@ -1,2 +1,2 @@
 # GR-PiC2D
-General Relativity PiC Simulation (FDTD)
+General Relativity PiC Simulation 
