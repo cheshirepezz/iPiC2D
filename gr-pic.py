@@ -1,6 +1,6 @@
 #
 # created:        03.10.2020
-# last modified:  03.10.2020
+# last modified:  04.10.2020
 # author:         Luca Pezzini
 # e-mail :        luca.pezzini@edu.unito.it
 # MIT license
@@ -30,15 +30,11 @@
 # for-loop for time update spanning the entire time-grid.
 #
 
-import sys
 import math
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import pyplot, cm
 from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import animation as anim
 import time
-import gc
 
 # Function def.
 
@@ -74,21 +70,11 @@ def Plot3D(x, y, p):
     ax.set_ylabel('$y$')
     plt.show()
 
-animate = True
-save = False
-    
-# Bz animation setup
-if animate:    
-    fig = plt.figure('Bz animation')    
-    plt.rcParams['animation.ffmpeg_path'] = "/usr/local/Cellar/ffmpeg/4.2.2_2/bin"    
-    plt.rcParams['animation.bitrate'] = 100000    
-    ims = []
-
 #
 # STEP 1: SET the GRID!
 #
 
-Nt = 500 # number of time steps
+Nt = 1500 # number of time steps
 Nx1, Nx2 = 50, 50  # nodes
 sigma = 0.02
 x1min, x1max = 0, 1 # physic domain x
@@ -118,6 +104,8 @@ x1v, x2v = np.meshgrid(x1, x2, indexing='ij')
 # Initialization of field matrices
 Ex1 = np.zeros([Nx1, Nx2], dtype=float)
 Ex2 = np.zeros([Nx1, Nx2], dtype=float)
+Bx1 = np.zeros([Nx1, Nx2], dtype=float)
+Bx2 = np.zeros([Nx1, Nx2], dtype=float)
 Bx3 = np.zeros([Nx1, Nx2], dtype=float)
 Bx3old = np.zeros([Nx1, Nx2], dtype=float) # Bx3 at time n-1/2
 
@@ -168,12 +156,12 @@ for t in range(Nt): # count {0, Nt-1}
                                 *    (gx3x1[x1s+1:x1e+1, x2s+1:x2e+1]*Bx1[x1s+1:x1e+1, x2s+1:x2e+1] - gx3x1[x1s:x1e, x2s:x2e]*Bx1[x1s:x1e, x2s:x2e]\
                                 +     gx3x1[x1s:x1e, x2s+1:x2e+1]*Bx1[x1s:x1e, x2s+1:x2e+1] - gx3x1[x1s:x1e, x2s:x2e]*Bx1[x1s:x1e, x2s:x2e]\
                                 +     gx3x2[x1s:x1e, x2s+1:x2e+1]*Bx2[x1s:x1e, x2s+1:x2e+1] - gx3x2[x1s:x1e, x2s-1:x2e-1]*Bx2[x1s:x1e, x2s-1:x2e-1]\
-                                + 2.*(gx3x3[x1s:x1e, x2s+1:x2e+1]*B[x3x1s:x1e, x2s+1:x2e+1] - gx3x3[x1s:x1e, x2s:x2e]*Bx3[x3x1s:x1e, x2s:x2e]))
-    Ex2[x1s:x1e, x2s:x2e] -= dt * (1./(2.*dx1*J[x1s:x1e, x2s:x2e])\
+                                + 2.*(gx3x3[x1s:x1e, x2s+1:x2e+1]*Bx3[x1s:x1e, x2s+1:x2e+1] - gx3x3[x1s:x1e, x2s:x2e]*Bx3[x1s:x1e, x2s:x2e]))
+    Ex2[x1s:x1e, x2s:x2e] -= dt * (1./(2.*dx1*J[x1s:x1e, x2s:x2e]))\
                                 *    (gx3x1[x1s+1:x1e+1, x2s:x2e]*Bx1[x1s+1:x1e+1, x2s:x2e] - gx3x1[x1s-1:x1e-1, x2s:x2e]*Bx1[x1s-1:x1e-1, x2s:x2e]\
-                                +     gx3x2[x1s+1:x1e+1, x2s:x2e]*Bx2[x1s+1:x1e+1, x2s:x2e] - gx3x2[x1s:x1e, x2s:x2e]*Bx2[x2x1s:x1e, x2s:x2e]\
-                                +     gx3x2[x1s+1:x1e+1, x2s:x2e]*Bx2[x1s+1:x1e+1, x2s:x2e] - gx3x2[x1s:x1e, x2s-1:x2e-1]*Bx2[x2x1s:x1e, x2s-1:x2e-1]\
-                                + 2.*(gx3x3[x1s+1:x1e+1, x2s:x2e]*Bx3[x1s+1:x1e+1, x2s:x2e] - gx3x3[x1s:x1e, x2s:x2e]*Bx3[x2x1s:x1e, x2s:x2e]))  
+                                +     gx3x2[x1s+1:x1e+1, x2s:x2e]*Bx2[x1s+1:x1e+1, x2s:x2e] - gx3x2[x1s:x1e, x2s:x2e]*Bx2[x1s:x1e, x2s:x2e]\
+                                +     gx3x2[x1s+1:x1e+1, x2s:x2e]*Bx2[x1s+1:x1e+1, x2s:x2e] - gx3x2[x1s:x1e, x2s-1:x2e-1]*Bx2[x1s:x1e, x2s-1:x2e-1]\
+                                + 2.*(gx3x3[x1s+1:x1e+1, x2s:x2e]*Bx3[x1s+1:x1e+1, x2s:x2e] - gx3x3[x1s:x1e, x2s:x2e]*Bx3[x1s:x1e, x2s:x2e]))  
     # END : spatial update loops for Ex1 and Ex2 fields
     
     # swop var.
@@ -183,7 +171,7 @@ for t in range(Nt): # count {0, Nt-1}
     Ex2_b[:, 0] = Ex2[:, 0]
     # Reflective BC for E field
     Ex1[0, :] = Ex1[-1, :]   # left = right
-    Ex1[-1, :] = Ex_l[0, :] # right = left
+    Ex1[-1, :] = Ex1_l[0, :] # right = left
     Ex1[:, 0] = Ex1[:, -1]   # bottom = top
     Ex1[:, -1] = Ex1_b[:, 0] # top = bottom
     Ex2[0, :] = Ex2[-1, :]   # left = right
@@ -192,14 +180,14 @@ for t in range(Nt): # count {0, Nt-1}
     Ex2[:, -1] = Ex2_b[:,0]  # top = bottom
     
     # BEGIN : spatial update loops for Bz fields
-    Bx3[x1s:x1e, x2s:x2e] -= dt * (1./(2.*dx1*J[x1s:x1e, x2s:x2e])\
+    Bx3[x1s:x1e, x2s:x2e] -= dt * ((1./(2.*dx1*J[x1s:x1e, x2s:x2e]))\
                                 *    (gx2x1[x1s+1:x1e+1, x2s:x2e]*Bx1[x1s+1:x1e+1, x2s:x2e] - gx2x1[x1s-1:x1e-1, x2s:x2e]*Bx1[x1s-1:x1e-1, x2s:x2e]\
                                 + 2.*(gx2x2[x1s:x1e, x2s:x2e]*Bx2[x1s:x1e, x2s:x2e] - gx2x2[x1s-1:x1e-1, x2s:x2e]*Bx2[x1s-1:x1e-1, x2s:x2e])\
                                 + 2.*(gx2x3[x1s+1:x1e+1, x2s:x2e]*Bx3[x1s+1:x1e+1, x2s:x2e] - gx2x3[x1s-1:x1e-1, x2s:x2e]*Bx3[x1s-1:x1e-1, x2s:x2e]))\
-                                + 1./(2.*dx2*J[x1s:x1e, x2s:x2e])\
+                                + (1./(2.*dx2*J[x1s:x1e, x2s:x2e]))\
                                 * (2.*(gx1x1[x1s:x1e, x2s:x2e]*Bx1[x1s:x1e, x2s:x2e] - gx1x1[x1s:x1e, x2s-1:x2e-1]*Bx1[x1s:x1e, x2s-1:x2e-1])\
                                 +      gx1x2[x1s:x1e, x2s+1:x2e+1]*Bx2[x1s:x1e, x2s+1:x2e+1] - gx1x2[x1s:x1e, x2s-1:x2e-1]*Bx2[x1s:x1e, x2s-1:x2e-1]\
-                                +      gx1x3[x1s:x1e, x2s+1:x2e+1]*Bx3[x1s:x1e, x2s+1:x2e+1] - gx1x3[x1s:x1e, x2s-1:x2e-1]*Bx3[x1s:x1e, x2s-1:x2e-1]))\
+                                +      gx1x3[x1s:x1e, x2s+1:x2e+1]*Bx3[x1s:x1e, x2s+1:x2e+1] - gx1x3[x1s:x1e, x2s-1:x2e-1]*Bx3[x1s:x1e, x2s-1:x2e-1]))
     # END : spatial update loops for Bz fields
     
     # swop var.
@@ -217,13 +205,6 @@ for t in range(Nt): # count {0, Nt-1}
                       + Bx3[x1s:x1e, x2s:x2e] * Bx3old[x1s:x1e, x2s:x2e])
     divE[t] = np.sum(1./J[x1s:x1e, x2s:x2e]*((1/dx1) * (J[x1s+1:x1e+1, x2s:x2e]*Ex1[x1s+1:x1e+1, x2s:x2e] - J[x1s:x1e, x2s:x2e]*Ex1[x1s:x1e, x2s:x2e])\
                                            + (1/dx2) * (J[x1s:x1e, x2s+1:x2e+1]*Ex2[x1s:x1e, x2s+1:x2e+1] - J[x1s:x1e, x2s:x2e]*Ex2[x1s:x1e, x2s:x2e])))
-
-    # Animation frame gathering
-    if (t % 20 == 0) & animate:
-        print(t/Nt)
-        im = plt.imshow(Bx3, origin='lower', extent=[0, Lx1, 0, Lx2], aspect='equal', vmin=-0.1, vmax=0.1)
-        ims.append([im])
-    gc.collect()
     
 stop = time.time()
 print("DONE!")
@@ -231,12 +212,6 @@ print("DONE!")
 #
 # STEP 4: VISUALIZATION!
 #
-
-if animate:
-    an = anim.ArtistAnimation(fig, ims, interval=1, repeat_delay=0, blit=True)
-    writer = anim.FFMpegWriter(fps=30)
-    if save:
-        an.save('bz_vid.mp4', writer=writer, dpi=500)
 
 #Plot3D(x1v, x2v, Bx3)
 Plot2D(x1v, x2v, Bx3)
