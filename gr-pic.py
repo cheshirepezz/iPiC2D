@@ -34,7 +34,6 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import time
 
 # Function def.
 
@@ -74,8 +73,8 @@ def Plot3D(x, y, p):
 # STEP 1: SET the GRID!
 #
 
-Nt = 1500 # number of time steps
-Nx1, Nx2 = 50, 50  # nodes
+Nt = 2000 # number of time steps
+Nx1, Nx2 = 250, 250  # nodes
 sigma = 0.02
 x1min, x1max = 0, 1 # physic domain x
 x2min, x2max = 0, 1 # physic domain y
@@ -146,22 +145,15 @@ x2e = Nx2 - 1
 
 
 print("START SYSTEM EVOLUTION!")
-start = time.time()
 for t in range(Nt): # count {0, Nt-1}
-
+    print("Time steps:", t)
     Bx3old[:, :] = Bx3[:, :]
 
     # BEGIN : spatial update loops for Ey and Ex fields
-    Ex1[x1s:x1e, x2s:x2e] += dt * (1./(2.*dx2*J[x1s:x1e, x2s:x2e]))\
-                                *    (gx3x1[x1s+1:x1e+1, x2s+1:x2e+1]*Bx1[x1s+1:x1e+1, x2s+1:x2e+1] - gx3x1[x1s:x1e, x2s:x2e]*Bx1[x1s:x1e, x2s:x2e]\
-                                +     gx3x1[x1s:x1e, x2s+1:x2e+1]*Bx1[x1s:x1e, x2s+1:x2e+1] - gx3x1[x1s:x1e, x2s:x2e]*Bx1[x1s:x1e, x2s:x2e]\
-                                +     gx3x2[x1s:x1e, x2s+1:x2e+1]*Bx2[x1s:x1e, x2s+1:x2e+1] - gx3x2[x1s:x1e, x2s-1:x2e-1]*Bx2[x1s:x1e, x2s-1:x2e-1]\
-                                + 2.*(gx3x3[x1s:x1e, x2s+1:x2e+1]*Bx3[x1s:x1e, x2s+1:x2e+1] - gx3x3[x1s:x1e, x2s:x2e]*Bx3[x1s:x1e, x2s:x2e]))
-    Ex2[x1s:x1e, x2s:x2e] -= dt * (1./(2.*dx1*J[x1s:x1e, x2s:x2e]))\
-                                *    (gx3x1[x1s+1:x1e+1, x2s:x2e]*Bx1[x1s+1:x1e+1, x2s:x2e] - gx3x1[x1s-1:x1e-1, x2s:x2e]*Bx1[x1s-1:x1e-1, x2s:x2e]\
-                                +     gx3x2[x1s+1:x1e+1, x2s:x2e]*Bx2[x1s+1:x1e+1, x2s:x2e] - gx3x2[x1s:x1e, x2s:x2e]*Bx2[x1s:x1e, x2s:x2e]\
-                                +     gx3x2[x1s+1:x1e+1, x2s:x2e]*Bx2[x1s+1:x1e+1, x2s:x2e] - gx3x2[x1s:x1e, x2s-1:x2e-1]*Bx2[x1s:x1e, x2s-1:x2e-1]\
-                                + 2.*(gx3x3[x1s+1:x1e+1, x2s:x2e]*Bx3[x1s+1:x1e+1, x2s:x2e] - gx3x3[x1s:x1e, x2s:x2e]*Bx3[x1s:x1e, x2s:x2e]))  
+    Ex1[x1s:x1e, x2s:x2e] += dt * (1./(dx2*J[x1s:x1e, x2s:x2e]))\
+                                * (gx3x3[x1s:x1e, x2s+1:x2e+1]*Bx3[x1s:x1e, x2s+1:x2e+1] - gx3x3[x1s:x1e, x2s:x2e]*Bx3[x1s:x1e, x2s:x2e])
+    Ex2[x1s:x1e, x2s:x2e] -= dt * (1./(dx1*J[x1s:x1e, x2s:x2e]))\
+                                * (gx3x3[x1s+1:x1e+1, x2s:x2e]*Bx3[x1s+1:x1e+1, x2s:x2e] - gx3x3[x1s:x1e, x2s:x2e]*Bx3[x1s:x1e, x2s:x2e])
     # END : spatial update loops for Ex1 and Ex2 fields
     
     # swop var.
@@ -181,13 +173,11 @@ for t in range(Nt): # count {0, Nt-1}
     
     # BEGIN : spatial update loops for Bz fields
     Bx3[x1s:x1e, x2s:x2e] -= dt * ((1./(2.*dx1*J[x1s:x1e, x2s:x2e]))\
-                                *    (gx2x1[x1s+1:x1e+1, x2s:x2e]*Bx1[x1s+1:x1e+1, x2s:x2e] - gx2x1[x1s-1:x1e-1, x2s:x2e]*Bx1[x1s-1:x1e-1, x2s:x2e]\
-                                + 2.*(gx2x2[x1s:x1e, x2s:x2e]*Bx2[x1s:x1e, x2s:x2e] - gx2x2[x1s-1:x1e-1, x2s:x2e]*Bx2[x1s-1:x1e-1, x2s:x2e])\
-                                + 2.*(gx2x3[x1s+1:x1e+1, x2s:x2e]*Bx3[x1s+1:x1e+1, x2s:x2e] - gx2x3[x1s-1:x1e-1, x2s:x2e]*Bx3[x1s-1:x1e-1, x2s:x2e]))\
-                                + (1./(2.*dx2*J[x1s:x1e, x2s:x2e]))\
-                                * (2.*(gx1x1[x1s:x1e, x2s:x2e]*Bx1[x1s:x1e, x2s:x2e] - gx1x1[x1s:x1e, x2s-1:x2e-1]*Bx1[x1s:x1e, x2s-1:x2e-1])\
-                                +      gx1x2[x1s:x1e, x2s+1:x2e+1]*Bx2[x1s:x1e, x2s+1:x2e+1] - gx1x2[x1s:x1e, x2s-1:x2e-1]*Bx2[x1s:x1e, x2s-1:x2e-1]\
-                                +      gx1x3[x1s:x1e, x2s+1:x2e+1]*Bx3[x1s:x1e, x2s+1:x2e+1] - gx1x3[x1s:x1e, x2s-1:x2e-1]*Bx3[x1s:x1e, x2s-1:x2e-1]))
+                                *    (gx2x1[x1s+1:x1e+1, x2s:x2e]*Ex1[x1s+1:x1e+1, x2s:x2e] - gx2x1[x1s-1:x1e-1, x2s:x2e]*Ex1[x1s-1:x1e-1, x2s:x2e]\
+                                + 2.*(gx2x2[x1s:x1e, x2s:x2e]*Ex2[x1s:x1e, x2s:x2e] - gx2x2[x1s-1:x1e-1, x2s:x2e]*Ex2[x1s-1:x1e-1, x2s:x2e]))\
+                                - (1./(2.*dx2*J[x1s:x1e, x2s:x2e]))\
+                                * (2.*(gx1x1[x1s:x1e, x2s:x2e]*Ex1[x1s:x1e, x2s:x2e] - gx1x1[x1s-1:x1e-1, x2s:x2e]*Ex1[x1s-1:x1e-1, x2s:x2e])\
+                                +      gx1x2[x1s:x1e, x2s+1:x2e+1]*Ex2[x1s:x1e, x2s+1:x2e+1] - gx1x2[x1s:x1e, x2s-1:x2e-1]*Ex2[x1s:x1e, x2s-1:x2e-1]))                   
     # END : spatial update loops for Bz fields
     
     # swop var.
@@ -204,9 +194,7 @@ for t in range(Nt): # count {0, Nt-1}
                       + np.power(Ex2[x1s:x1e, x2s:x2e],2.)\
                       + Bx3[x1s:x1e, x2s:x2e] * Bx3old[x1s:x1e, x2s:x2e])
     divE[t] = np.sum(1./J[x1s:x1e, x2s:x2e]*((1/dx1) * (J[x1s+1:x1e+1, x2s:x2e]*Ex1[x1s+1:x1e+1, x2s:x2e] - J[x1s:x1e, x2s:x2e]*Ex1[x1s:x1e, x2s:x2e])\
-                                           + (1/dx2) * (J[x1s:x1e, x2s+1:x2e+1]*Ex2[x1s:x1e, x2s+1:x2e+1] - J[x1s:x1e, x2s:x2e]*Ex2[x1s:x1e, x2s:x2e])))
-    
-stop = time.time()
+                                           + (1/dx2) * (J[x1s:x1e, x2s+1:x2e+1]*Ex2[x1s:x1e, x2s+1:x2e+1] - J[x1s:x1e, x2s:x2e]*Ex2[x1s:x1e, x2s:x2e])))   
 print("DONE!")
 
 #
