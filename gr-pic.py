@@ -30,6 +30,7 @@
 # for-loop for time update spanning the entire time-grid.
 #
 
+import sys
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -182,14 +183,14 @@ for t in range(Nt): # count {0, Nt-1}
     Ex2_b[:, 0] = Ex2[:, 0]
     # Reflective BC for E field
     Ex1[0, :] = Ex1[-1, :]   # left = right
-    Ex1[-1, :] = Ex1_l[0, :] # right = left
+    Ex1[-1, :] = Ex_l[0, :] # right = left
     Ex1[:, 0] = Ex1[:, -1]   # bottom = top
     Ex1[:, -1] = Ex1_b[:, 0] # top = bottom
     Ex2[0, :] = Ex2[-1, :]   # left = right
     Ex2[-1, :] = Ex2_l[0, :] # right = left
     Ex2[:, 0] = Ex2[:, -1]   # bottom = top
     Ex2[:, -1] = Ex2_b[:,0]  # top = bottom
-
+    
     # BEGIN : spatial update loops for Bz fields
     Bx3[x1s:x1e, x2s:x2e] -= dt * (1./(2.*dx1*J[x1s:x1e, x2s:x2e])\
                                 *    (gx2x1[x1s+1:x1e+1, x2s:x2e]*Bx1[x1s+1:x1e+1, x2s:x2e] - gx2x1[x1s-1:x1e-1, x2s:x2e]*Bx1[x1s-1:x1e-1, x2s:x2e]\
@@ -214,8 +215,8 @@ for t in range(Nt): # count {0, Nt-1}
     U[t] =  0.5 * np.sum(np.power(Ex1[x1s:x1e, x2s:x2e],2.)\
                       + np.power(Ex2[x1s:x1e, x2s:x2e],2.)\
                       + Bx3[x1s:x1e, x2s:x2e] * Bx3old[x1s:x1e, x2s:x2e])
-    divE[t] = np.sum((1/dx1) * (Ex1[x1s+1:x1e+1, x2s:x2e] - Ex1[x1s:x1e, x2s:x2e])\
-                   + (1/dx2) * (Ex2[x1s:x1e, x2s+1:x2e+1] - Ex2[x1s:x1e, x2s:x2e]))
+    divE[t] = np.sum(1./J[x1s:x1e, x2s:x2e]*((1/dx1) * (J[x1s+1:x1e+1, x2s:x2e]*Ex1[x1s+1:x1e+1, x2s:x2e] - J[x1s:x1e, x2s:x2e]*Ex1[x1s:x1e, x2s:x2e])\
+                                           + (1/dx2) * (J[x1s:x1e, x2s+1:x2e+1]*Ex2[x1s:x1e, x2s+1:x2e+1] - J[x1s:x1e, x2s:x2e]*Ex2[x1s:x1e, x2s:x2e])))
 
     # Animation frame gathering
     if (t % 20 == 0) & animate:
