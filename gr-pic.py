@@ -73,8 +73,8 @@ def Plot3D(x, y, p):
 # STEP 1: SET the GRID!
 #
 
-Nt = 1000 # number of time steps
-Nx1, Nx2 = 100, 100  # nodes
+Nt = 2000 # number of time steps
+Nx1, Nx2 = 500, 500  # nodes
 sigma = 0.02
 x1min, x1max = 0, 1 # physic domain x
 x2min, x2max = 0, 1 # physic domain y
@@ -119,13 +119,13 @@ Bx3_b = np.zeros([Nx1, Nx2], dtype=float)
 # Initialization of the Metric Tensor and the Jacobian
 J = np.ones([Nx1, Nx2], dtype=float) 
 gx1x1 = np.ones([Nx1, Nx2], dtype=float)
-gx1x2 = np.ones([Nx1, Nx2], dtype=float)
-gx1x3 = np.ones([Nx1, Nx2], dtype=float)
-gx2x1 = np.ones([Nx1, Nx2], dtype=float)
+gx1x2 = np.zeros([Nx1, Nx2], dtype=float)
+gx1x3 = np.zeros([Nx1, Nx2], dtype=float)
+gx2x1 = np.zeros([Nx1, Nx2], dtype=float)
 gx2x2 = np.ones([Nx1, Nx2], dtype=float)
-gx2x3 = np.ones([Nx1, Nx2], dtype=float)
-gx3x1 = np.ones([Nx1, Nx2], dtype=float)
-gx3x2 = np.ones([Nx1, Nx2], dtype=float)
+gx2x3 = np.zeros([Nx1, Nx2], dtype=float)
+gx3x1 = np.zeros([Nx1, Nx2], dtype=float)
+gx3x2 = np.zeros([Nx1, Nx2], dtype=float)
 gx3x3 = np.ones([Nx1, Nx2], dtype=float)
 
 U = np.zeros([Nt], dtype=float) # Total energy

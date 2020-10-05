@@ -57,8 +57,8 @@ def Plot3D(x, y, p):
 # STEP 1: SET the GRID!
 #
 
-Nt = 1000 # number of time steps
-Nx1, Nx2 = 100, 100  # nodes
+Nt = 2000 # number of time steps
+Nx1, Nx2 = 500, 500  # nodes
 sigma = 0.02
 x1min, x1max = 0, 1 # physic domain x
 x2min, x2max = 0, 1 # physic domain y
