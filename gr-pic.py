@@ -73,8 +73,8 @@ def Plot3D(x, y, p):
 # STEP 1: SET the GRID!
 #
 
-Nt = 2000 # number of time steps
-Nx1, Nx2 = 250, 250  # nodes
+Nt = 1000 # number of time steps
+Nx1, Nx2 = 100, 100  # nodes
 sigma = 0.02
 x1min, x1max = 0, 1 # physic domain x
 x2min, x2max = 0, 1 # physic domain y
@@ -130,7 +130,7 @@ gx3x3 = np.ones([Nx1, Nx2], dtype=float)
 
 U = np.zeros([Nt], dtype=float) # Total energy
 divE = np.zeros([Nt], dtype=float) # Divergence of E
-Bx3[int((Nx1-1)/2),int((Nx2-1)/2)] = 0.001 # Initial conditions
+Bx3[int((Nx1-1)/2),int((Nx2-1)/2)] = 0.001 # Initial condition
 
 #
 # STEP 3: TIME EVOLUTION OF THE FIELD ON THE GRID!
@@ -176,8 +176,8 @@ for t in range(Nt): # count {0, Nt-1}
                                 *    (gx2x1[x1s+1:x1e+1, x2s:x2e]*Ex1[x1s+1:x1e+1, x2s:x2e] - gx2x1[x1s-1:x1e-1, x2s:x2e]*Ex1[x1s-1:x1e-1, x2s:x2e]\
                                 + 2.*(gx2x2[x1s:x1e, x2s:x2e]*Ex2[x1s:x1e, x2s:x2e] - gx2x2[x1s-1:x1e-1, x2s:x2e]*Ex2[x1s-1:x1e-1, x2s:x2e]))\
                                 - (1./(2.*dx2*J[x1s:x1e, x2s:x2e]))\
-                                * (2.*(gx1x1[x1s:x1e, x2s:x2e]*Ex1[x1s:x1e, x2s:x2e] - gx1x1[x1s-1:x1e-1, x2s:x2e]*Ex1[x1s-1:x1e-1, x2s:x2e])\
-                                +      gx1x2[x1s:x1e, x2s+1:x2e+1]*Ex2[x1s:x1e, x2s+1:x2e+1] - gx1x2[x1s:x1e, x2s-1:x2e-1]*Ex2[x1s:x1e, x2s-1:x2e-1]))                   
+                                * (2.*(gx1x1[x1s:x1e, x2s:x2e]*Ex1[x1s:x1e, x2s:x2e] - gx1x1[x1s:x1e, x2s-1:x2e-1]*Ex1[x2s:x2e, x1s-1:x1e-1])\
+                                +      gx1x2[x1s:x1e, x2s+1:x2e+1]*Ex2[x1s:x1e, x2s+1:x2e+1] - gx1x2[x1s:x1e, x2s-1:x2e-1]*Ex2[x1s:x1e, x2s-1:x2e-1]))
     # END : spatial update loops for Bz fields
     
     # swop var.
