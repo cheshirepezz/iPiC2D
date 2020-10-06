@@ -1,6 +1,6 @@
 #
 # created:        03.10.2020
-# last modified:  04.10.2020
+# last modified:  05.10.2020
 # author:         Luca Pezzini
 # e-mail :        luca.pezzini@edu.unito.it
 # MIT license
@@ -73,11 +73,11 @@ def Plot3D(x, y, p):
 # STEP 1: SET the GRID!
 #
 
-Nt = 2000 # number of time steps
+Nt = 1500 # number of time steps
 Nx1, Nx2 = 500, 500  # nodes
 sigma = 0.02
-x1min, x1max = 0, 1 # physic domain x
-x2min, x2max = 0, 1 # physic domain y
+x1min, x1max = 1, 2 # physic domain x
+x2min, x2max = 1, 2 # physic domain y
 
 Lx1, Lx2 = int(abs(x1max - x1min)), int(abs(x2max - x2min)) #logic domain lenght 
 dx1 = Lx1/(Nx1 - 1) # faces are (nodes - 1)
