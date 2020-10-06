@@ -55,8 +55,8 @@ def Plot2D(x, y, p):
     plt.figure()
     plt.contourf(x, y, p)#, cmap=plt.cm.jet)
     plt.title("Contour of Bz")
-    plt.xlabel("y")
-    plt.ylabel("x")
+    plt.xlabel('$x$')
+    plt.ylabel('$y$')
     plt.colorbar()
 
 def Plot3D(x, y, p):
@@ -73,11 +73,11 @@ def Plot3D(x, y, p):
 # STEP 1: SET the GRID!
 #
 
-Nt = 1500 # number of time steps
-Nx1, Nx2 = 500, 500  # nodes
+Nt = 4000 # number of time steps
+Nx1, Nx2 = 250, 250  # nodes
 sigma = 0.02
-x1min, x1max = 1, 6 # physic domain x
-x2min, x2max = 0, 2.*math.pi # physic domain y
+x1min, x1max = 1, 2.5 # physic domain x
+x2min, x2max = 0, 0.5*math.pi # physic domain y
 
 Lx1, Lx2 = int(abs(x1max - x1min)), int(abs(x2max - x2min)) #logic domain lenght 
 dx1 = Lx1/(Nx1 - 1) # faces are (nodes - 1)
@@ -130,7 +130,7 @@ gx3x3 = np.ones([Nx1, Nx2], dtype=float)
 
 U = np.zeros([Nt], dtype=float) # Total energy
 divE = np.zeros([Nt], dtype=float) # Divergence of E
-Bx3[int((Nx1-1)/2),int((Nx2-1)/2)] = 0.001 # Initial condition
+Bx3[int((Nx1-1)/2),int((Nx2-1)/2)] = 0.1 # Initial condition
 
 #
 # STEP 3: TIME EVOLUTION OF THE FIELD ON THE GRID!
