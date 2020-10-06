@@ -1,2 +1,5 @@
 # GR-PiC2D
-General Relativity PiC simulation in 2D
+
+## Table of contents
+* [Cartesian](https://github.com/cheshirepezz/GR-PiC2D/tree/main/cartesian)
+* [Cylindrical](https://github.com/cheshirepezz/GR-PiC2D/tree/main/cylindrical)
