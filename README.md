@@ -1,5 +1,5 @@
 # GR-PiC2D
 
 ## Table of contents
-* [Cartesian](https://github.com/cheshirepezz/Plasma-Recipes/tree/master/Drift)
-* [Cylindrical](https://github.com/cheshirepezz/Plasma-Recipes/tree/master/Landau_Damping)
+* [Cartesian](https://github.com/cheshirepezz/GR-PiC2D/tree/main/cartesian)
+* [Cylindrical](https://github.com/cheshirepezz/GR-PiC2D/tree/main/cylindrical)
