@@ -33,7 +33,6 @@
 import math
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 # Function def.
 
@@ -59,25 +58,19 @@ def Plot2D(x, y, p):
     plt.ylabel('$y$')
     plt.colorbar()
 
-def Plot3D(x, y, p):
-    fig = pyplot.figure(figsize=(11, 7), dpi=100)
-    ax = fig.gca(projection='3d')
-    surf = ax.plot_surface(x, y, p[:], rstride=1, cstride=1, cmap=cm.viridis,
-            linewidth=0, antialiased=False)
-    ax.view_init(30, 225)
-    ax.set_xlabel('$x$')
-    ax.set_ylabel('$y$')
-    plt.show()
-
+def PlotCyl2D(r, theta, p, name):
+    fig = plt.figure(name)
+    ax = fig.add_subplot(111, polar=True)
+    ax.pcolormesh(theta, r, p, shading='auto', cmap='gist_heat')
 #
 # STEP 1: SET the GRID!
 #
 
-Nt = 4000 # number of time steps
-Nx1, Nx2 = 250, 250  # nodes
+Nt = 500 # number of time steps
+Nx1, Nx2 = 100, 100  # nodes
 sigma = 0.02
-x1min, x1max = 1, 2.5 # physic domain x
-x2min, x2max = 0, 0.5*math.pi # physic domain y
+x1min, x1max = 0, 1 # physic domain x
+x2min, x2max = 0, 2*np.pi # physic domain y
 
 Lx1, Lx2 = int(abs(x1max - x1min)), int(abs(x2max - x2min)) #logic domain lenght 
 dx1 = Lx1/(Nx1 - 1) # faces are (nodes - 1)
@@ -130,7 +123,9 @@ gx3x3 = np.ones([Nx1, Nx2], dtype=float)
 
 U = np.zeros([Nt], dtype=float) # Total energy
 divE = np.zeros([Nt], dtype=float) # Divergence of E
-Bx3[int((Nx1-1)/2),int((Nx2-1)/2)] = 0.1 # Initial condition
+#Bx3[int(x1min),int(x2min)] = 0.001 # Initial condition
+#Bx3[int((Nx1-1)/2),int((Nx2-1)/2)] = 0.001 # Initial condition
+Bx3[int(x1min + dx1), :] = 1.0 # Initial condition
 
 #
 # STEP 3: TIME EVOLUTION OF THE FIELD ON THE GRID!
@@ -201,8 +196,8 @@ print("DONE!")
 # STEP 4: VISUALIZATION!
 #
 
-#Plot3D(x1v, x2v, Bx3)
 Plot2D(x1v, x2v, Bx3)
+PlotCyl2D(x1v, x2v, Bx3, 'Cylindrical Plot')
 Energy(U)
 DivE(divE)
 
