@@ -23,7 +23,6 @@
 ## Table of contents
 * Field solver
   * [Cartesian](https://github.com/cheshirepezz/GR-iPiC2D/tree/main/cartesian) 
-  * [Cylindrical](https://github.com/cheshirepezz/GR-iPiC2D/tree/main/cylindrical) 
   
  ## Technologies
 Project is created with:
