@@ -21,7 +21,6 @@
 # General Relativity Implicit PiC method in 2D
 
 ## Table of contents
-* Fields solver
   
  ## Technologies
 Project is created with:
