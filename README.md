@@ -21,8 +21,7 @@
 # General Relativity Implicit PiC method in 2D
 
 ## Table of contents
-* Field solver
-  * [Cartesian](https://github.com/cheshirepezz/GR-iPiC2D/tree/main/cartesian) 
+* Fields solver
   
  ## Technologies
 Project is created with:
