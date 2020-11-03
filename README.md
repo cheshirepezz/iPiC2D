@@ -21,7 +21,9 @@
 # General Relativity Implicit PiC method in 2D
 
 ## Table of contents
-  
+* [Field solver](https://github.com/cheshirepezz/GR-iPiC2D/blob/main/Fields/covTEz.py)
+* [Implicit PiC](https://github.com/cheshirepezz/GR-iPiC2D/blob/main/PiC/griPiC2D.py)
+
  ## Technologies
 Project is created with:
 * [Python](https://www.python.org/): 3.7.6
