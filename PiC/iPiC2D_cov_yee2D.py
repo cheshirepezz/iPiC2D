@@ -1,5 +1,5 @@
 #
-# author:         L. Pezzini
+# author:         G. Lapenta, L. Pezzini
 # e-mail :        luca.pezzini@edu.unito.it
 # date:           30.10.2020
 # copyright:      2020 KU Leuven (c)
