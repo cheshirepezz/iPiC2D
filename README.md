@@ -18,7 +18,7 @@
   
 </p>
 
-# General Relativity Implicit PiC method in 2D
+# General Geometry Implicit PiC method in 2D
 
 ## Table of contents
 * [Field solver](https://github.com/cheshirepezz/GR-iPiC2D/blob/main/Fields)
