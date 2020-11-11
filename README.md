@@ -20,9 +20,9 @@
 
 # General Geometry Implicit PiC method in 2D
 
-## Table of contents
-* [Field solver](https://github.com/cheshirepezz/GR-iPiC2D/blob/main/Fields)
-* [Implicit PiC](https://github.com/cheshirepezz/GR-iPiC2D/blob/main/PiC)
+## Code is obtained by mearging
+* [Field solver](https://github.com/cheshirepezz/cMaxwell3D/blob/main/cov_maxwell_yee3D.py)
+* [Implicit PiC](https://github.com/cheshirepezz/iPiC2D/blob/master/Newtonian/iPiC2D_colocated.py)
 
  ## Technologies
 Project is created with:
