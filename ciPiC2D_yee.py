@@ -36,6 +36,7 @@ QM = -1. # Charge/mass ratio
 V0x = 0 # Stream velocity
 V0y = 0 # Stream velocity
 VT = .1 # thermal velocity
+
 # Time steps
 Nt = nt
 # Nodes
@@ -81,10 +82,6 @@ curl_Bx3 = np.zeros([Nx1, Nx2, Nx3], dtype=float)
 
 #Perturbation
 Bx3[int((Nx1-1)/2), int((Nx2-1)/2), :] = 1.
-# Total energy
-U = np.zeros(Nt, dtype=float) 
-# Divergence of E
-divB = np.zeros(Nt, dtype=float) 
 
 # Grid begin & end point
 # Note we don't start from 0 cause 0 and Nx1-1 are the same node
@@ -174,7 +171,8 @@ def periodicBC(A):
     A[:, :, -1] = A_b[:, :, 0]  # top = bottom  
 
 def phys_to_krylov(phi,u,v):
-    ''' To populate the Krylov vector using physiscs vectors
+    ''' 
+    To populate the Krylov vector using physiscs vectors
     Phi is a 2D array of dimension (nx,ny)
     u of dimensions npart
     v of dimension npart
@@ -186,7 +184,8 @@ def phys_to_krylov(phi,u,v):
     return ykrylov
 
 def krylov_to_phys(xkrylov):
-    ''' To populate the physiscs vectors using the Krylov space vector
+    ''' 
+    To populate the physiscs vectors using the Krylov space vector
     Phi is a 2D array of dimension (nx,ny)
     ubar of dimensions npart
     vbar of dimension npart
@@ -199,7 +198,8 @@ def krylov_to_phys(xkrylov):
     return P, ubar, vbar
 
 def e_field(P):
-    ''' To compute the electric field from the potential
+    ''' 
+    To compute the electric field from the potential
     '''
     Ex = zeros((nx, ny), float)
     Ey = zeros((nx, ny), float)
@@ -214,7 +214,8 @@ def e_field(P):
     return Ex, Ey
 
 def laplacian(P):
-    ''' To compute the Laplacian in uniform grid
+    ''' 
+    To compute the Laplacian in uniform grid
     '''
     d2x = zeros((nx, ny), float)
     d2y = zeros((nx, ny), float)
@@ -234,10 +235,10 @@ def laplacian(P):
 
 
 def residual(xkrylov):
-    ''' Calculation of the residual of the equations
+    ''' 
+    Calculation of the residual of the equations
     This is the most important part: the definion of the problem
     '''
-    global Ex1, Ex2, Ex3, Bx1, Bx2, Bx3
     P, ubar, vbar = krylov_to_phys(xkrylov)
     
     xbar = x + ubar*dt/2
@@ -286,7 +287,8 @@ def residual(xkrylov):
     return  ykrylov
 
 def grid_to_particle(x,y,E):  
-    ''' Interpolation grid to particle
+    ''' 
+    Interpolation grid to particle
     '''
     global dx, dy, nx, ny, npart
     
@@ -294,7 +296,7 @@ def grid_to_particle(x,y,E):
 
     for i in range(npart):
 
-      #  interpolate field Ex from grid to particle */
+      # interpolate field Ex from grid to particle */
       xa = x[i]/dx
       ya = y[i]/dy
       i1 = int(xa)
@@ -310,14 +312,15 @@ def grid_to_particle(x,y,E):
     return Ep
 
 def particle_to_grid(x,y,q): 
-    ''' Interpolation particle to grid
+    ''' 
+    Interpolation particle to grid
     ''' 
     global dx, dy, nx, ny, npart
     
     r =  zeros((nx, ny), float)
     for i in range(npart):
 
-      #  interpolate field Ex from grid to particle */
+      # interpolate field Ex from grid to particle */
       xa = x[i]/dx
       ya = y[i]/dy
       i1 = int(xa)
