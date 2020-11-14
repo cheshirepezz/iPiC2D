@@ -20,9 +20,10 @@
 
 # General Geometry Implicit PiC method in 2D
 
-## Code was obtained by mearging
-* [Field solver](https://github.com/cheshirepezz/m-solver/blob/main/cov_maxwell_yee3D.py)
-* [Implicit PiC](https://github.com/cheshirepezz/iPiC2D/blob/master/Newtonian/iPiC2D_colocated.py)
+## Table of content
+* [Newtonian Colocated iPiC](https://github.com/cheshirepezz/ciPiC2D/tree/main/Newtonian)
+* [Relativistic Yee iPiC](https://github.com/cheshirepezz/ciPiC2D/tree/main/Relativistic)
+* [Covariant Yee iPiC](https://github.com/cheshirepezz/ciPiC2D/tree/main/Covariant)
 
  ## Technologies
 Project is created with:
