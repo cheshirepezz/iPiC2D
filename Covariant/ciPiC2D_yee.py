@@ -307,7 +307,7 @@ def residual(xkrylov):
     Bx2_old[:, :, :] = Bx2[:, :, :]
     Bx3_old[:, :, :] = Bx2[:, :, :]
 
-    curl_Bx1, curl_Bx2, curl_Bx3 = curl(Bx1, Bx2, Bx3, 0)
+    curl_Bx1, curl_Bx2, curl_Bx3 = curl(Bx1, Bx2, Bx3, 'B')#0
     Ex1 += dt*curl_Bx1
     Ex2 += dt*curl_Bx2
     Ex3 += dt*curl_Bx3
@@ -315,7 +315,7 @@ def residual(xkrylov):
     periodicBC(Ex2)
     periodicBC(Ex3)
 
-    curl_Ex1, curl_Ex2, curl_Ex3 = curl(Ex1, Ex2, Ex3, 1)
+    curl_Ex1, curl_Ex2, curl_Ex3 = curl(Ex1, Ex2, Ex3, 'E')#1
     Bx1 -= dt*curl_Ex1
     Bx2 -= dt*curl_Ex2
     Bx3 -= dt*curl_Ex3
@@ -425,7 +425,6 @@ for t in range(nt):
 
     Ex, Ey = Ex1, Ex2
     divE[t] = np.sum(np.abs(div(Bx1, Bx2, Bx3)))
-
     energy = np.sum(u**2) + np.sum(v**2) + np.sum(Ex**2) + np.sum(Ey**2)
     histEnergy.append(energy)
     print('energy =', energy)
