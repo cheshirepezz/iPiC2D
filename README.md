@@ -51,5 +51,5 @@ $ python ciPiC2D.py
 ```
 ## License
 
-ComputeEM is made available under the [MIT License](https://github.com/cheshirepezz/GR-iPiC2D/blob/master/LICENSE).
+ComputeEM is made available under the [MIT License](https://github.com/cheshirepezz/iPiC2D/blob/main/LICENSE).
 
