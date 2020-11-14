@@ -20,9 +20,10 @@
 
 # General Geometry Implicit PiC method in 2D
 
-## Code was obtained by mearging
-* [Field solver](https://github.com/cheshirepezz/m-solver/blob/main/cov_maxwell_yee3D.py)
-* [Implicit PiC](https://github.com/cheshirepezz/iPiC2D/blob/master/Newtonian/iPiC2D_colocated.py)
+## Table of content
+* [Newtonian Colocated iPiC](https://github.com/cheshirepezz/ciPiC2D/tree/main/Newtonian)
+* [Relativistic Yee iPiC](https://github.com/cheshirepezz/ciPiC2D/tree/main/Relativistic)
+* [Covariant Yee iPiC](https://github.com/cheshirepezz/ciPiC2D/tree/main/Covariant)
 
  ## Technologies
 Project is created with:
@@ -30,25 +31,25 @@ Project is created with:
 	
 ## Installation
 
-The sources are located on github: https://github.com/cheshirepezz/GR-iPiC2D/
+The sources are located on github: https://github.com/cheshirepezz/iPiC2D
 
 To use this code:
-* Star the directory "GR-iPiC2D" 
-* Clone the github repocheshirepezz/GR-iPiC2D
+* Star the directory "iPiC2D" 
+* Clone the github repo cheshirepezz/iPiC2D
 
 Open a terminal and write the command below to clone in your PC Plasma-Recipes repo:
 
 ```
-git clone https://github.com/cheshirepezz/GR-iPiC2D.git
-cd GR-iPiC2D
+git clone https://github.com/cheshirepezz/iPiC2D.git
+cd iPiC2D
 ```
 Now choose ther topic you want to study (ex. Cartesian geometry):
 
 ```
-$ cd cartesian
-$ python cart_gr-pic.py
+$ cd Covariant
+$ python ciPiC2D.py
 ```
 ## License
 
-ComputeEM is made available under the [MIT License](https://github.com/cheshirepezz/GR-iPiC2D/blob/master/LICENSE).
+ComputeEM is made available under the [MIT License](https://github.com/cheshirepezz/iPiC2D/blob/main/LICENSE).
 
