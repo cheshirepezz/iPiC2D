@@ -64,13 +64,15 @@ Bx3 = np.zeros([nx1, nx2, nx3], dtype=float)
 Bx1_old = np.zeros([nx1, nx2, nx3], dtype=float)
 Bx2_old = np.zeros([nx1, nx2, nx3], dtype=float)
 Bx3_old = np.zeros([nx1, nx2, nx3], dtype=float)
-# Curl of fields
+# Curl of a vector field
 curl_Ex1 = np.zeros([nx1, nx2, nx3], dtype=float)
 curl_Ex2 = np.zeros([nx1, nx2, nx3], dtype=float)
 curl_Ex3 = np.zeros([nx1, nx2, nx3], dtype=float)
 curl_Bx1 = np.zeros([nx1, nx2, nx3], dtype=float)
 curl_Bx2 = np.zeros([nx1, nx2, nx3], dtype=float)
 curl_Bx3 = np.zeros([nx1, nx2, nx3], dtype=float)
+# Divergence of a vector field
+divE = np.zeros(nt, dtype=float) 
 
 #Perturbation
 Bx3[int((nx1-1)/2), int((nx2-1)/2), :] = 0.01
@@ -171,7 +173,7 @@ def derx3b2(Ax1, Ax2, Ax3):
 
 def curl(Ax1, Ax2, Ax3, field): 
     ''' 
-    To compute the Curl in covariont coordinate
+    To compute the Curl in covariont coordinate.
     '''  
     curl_x1 = np.zeros([nx1, nx2, nx3], dtype=float)
     curl_x2 = np.zeros([nx1, nx2, nx3], dtype=float)
@@ -186,6 +188,15 @@ def curl(Ax1, Ax2, Ax3, field):
         curl_x2[ib:ie, jb:je, kb:ke] = derx3b2(Ax1, Ax2, Ax3) - derx3b1(Ax1, Ax2, Ax3)
         curl_x3[ib:ie, jb:je, kb:ke] = derx1b2(Ax1, Ax2, Ax3) - derx2b2(Ax1, Ax2, Ax3)
     return curl_x1, curl_x2, curl_x3
+
+def div(Ax1, Ax2, Ax3):
+  ''' 
+  To compute the Divergence in covariont coordinate.
+  '''  
+  return ((J[ib+1:ie+1, jb:je, kb:ke]*Ax1[ib+1:ie+1, jb:je, kb:ke] - J[ib:ie, jb:je, kb:ke]*Ax1[ib:ie, jb:je, kb:ke])/dx1\
+    +     (J[ib:ie, jb+1:je+1, kb:ke]*Ax2[ib:ie, jb+1:je+1, kb:ke] - J[ib:ie, jb:je, kb:ke]*Ax2[ib:ie, jb:je, kb:ke])/dx2\
+    +     (J[ib:ie, jb:je, kb+1:ke+1]*Ax3[ib:ie, jb:je, kb+1:ke+1] - J[ib:ie, jb:je, kb:ke]*Ax3[ib:ie, jb:je, kb:ke])/dx3)/J[ib:ie, jb:je, kb:ke]
+
 
 def periodicBC(A): 
     '''
@@ -413,18 +424,21 @@ for t in range(nt):
     periodicBC(Bx3)
 
     Ex, Ey = Ex1, Ex2
+    divE[t] = np.sum(np.abs(div(Bx1, Bx2, Bx3)))
 
     energy = np.sum(u**2) + np.sum(v**2) + np.sum(Ex**2) + np.sum(Ey**2)
     histEnergy.append(energy)
     print('energy =', energy)
+    #plt.figure(figsize =(8, 6))
     plt.subplot(2, 2, 1)
     plt.pcolor(xg, yg, phi)
     plt.colorbar()
     plt.subplot(2, 2, 2)
     plt.plot(x,y,'.')
     plt.subplot(2,2,3)
-    plt.plot(histEnergy)
+    #plt.plot(histEnergy)
+    plt.plot(divE)
     plt.subplot(2,2,4)
     plt.plot((histEnergy-histEnergy[0])/histEnergy[0])
     #plt.show()
-    plt.pause(0.000000000000001)
+    plt.pause(0.001)
