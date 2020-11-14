@@ -24,8 +24,8 @@ nx, ny = 75, 75
 Lx, Ly = 1.,1.
 dx, dy = Lx/(nx-1), Ly/(ny-1)
 dt = 0.1
-nt= 4
-npart = 1000
+nt= 10
+npart = 1024
 
 P_left, P_right = 0, 0
 P_top, P_bottom = 0, 0
@@ -239,6 +239,7 @@ def residual(xkrylov):
     Calculation of the residual of the equations
     This is the most important part: the definion of the problem
     '''
+    global Ex1, Ex2, Ex3, Bx1, Bx2, Bx3, Bx1_old, Bx2_old, Bx3_old
     P, ubar, vbar = krylov_to_phys(xkrylov)
     
     xbar = x + ubar*dt/2
@@ -253,7 +254,7 @@ def residual(xkrylov):
 
     res = lap + source
     res[0,0] = P[0,0]
-    
+
     #Ex, Ey = e_field(P)
     Bx1_old[:, :, :] = Bx1[:, :, :]
     Bx2_old[:, :, :] = Bx2[:, :, :]
@@ -279,7 +280,7 @@ def residual(xkrylov):
 
     Exp = grid_to_particle(xbar,ybar,Ex)
     Eyp = grid_to_particle(xbar,ybar,Ey)
-    
+
     resu = ubar - u - QM* Exp *dt/2
     resv = vbar - v - QM* Eyp *dt/2
     
@@ -291,11 +292,11 @@ def grid_to_particle(x,y,E):
     Interpolation grid to particle
     '''
     global dx, dy, nx, ny, npart
-    
+
+    k1 = 2  
     Ep = zeros_like(x)
 
     for i in range(npart):
-
       # interpolate field Ex from grid to particle */
       xa = x[i]/dx
       ya = y[i]/dy
@@ -307,8 +308,7 @@ def grid_to_particle(x,y,E):
       wx1 = 1.0 - wx2
       wy2 = ya - j1
       wy1 = 1.0 - wy2
-      Ep[i] = wx1* wy1 * E[i1,j1] + wx2* wy1 * E[i2,j1] + wx1* wy2 * E[i1,j2] + wx2* wy2 * E[i2,j2]  
-    
+      Ep[i] = wx1* wy1 * E[i1,j1,k1] + wx2* wy1 * E[i2,j1,k1] + wx1* wy2 * E[i1,j2,k1] + wx2* wy2 * E[i2,j2,k1]  
     return Ep
 
 def particle_to_grid(x,y,q): 
@@ -316,10 +316,9 @@ def particle_to_grid(x,y,q):
     Interpolation particle to grid
     ''' 
     global dx, dy, nx, ny, npart
-    
     r =  zeros((nx, ny), float)
-    for i in range(npart):
 
+    for i in range(npart):
       # interpolate field Ex from grid to particle */
       xa = x[i]/dx
       ya = y[i]/dy
@@ -386,7 +385,8 @@ for it in range(nt):
     periodicBC(Bx3)
 
     Ex, Ey = Ex1, Ex2
-    print('Ex, Ey ='+ Ex +','+ Ey)
+    
+    print(np.sum(Bx1**2), np.sum(Bx3**2), np.sum(Ex**2), np.sum(Ey**2))
 
     energy = np.sum(u**2) + np.sum(v**2) + np.sum(Ex**2) + np.sum(Ey**2)
     histEnergy.append(energy)
