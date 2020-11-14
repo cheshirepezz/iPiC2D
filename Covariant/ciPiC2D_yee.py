@@ -23,9 +23,9 @@ import matplotlib.pyplot as plt
 nx, ny = 75, 75
 Lx, Ly = 1.,1.
 dx, dy = Lx/(nx-1), Ly/(ny-1)
-dt = 0.1
-nt= 30
-npart = 100
+dt = 0.001
+nt= 100
+npart = 1024
 
 P_left, P_right = 0, 0
 P_top, P_bottom = 0, 0
@@ -329,7 +329,7 @@ def grid_to_particle(x,y,E):
     '''
     global dx, dy, nx, ny, npart
 
-    k1 = 2  
+    k1 = 2
     Ep = zeros_like(x)
 
     for i in range(npart):
