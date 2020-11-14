@@ -31,23 +31,23 @@ Project is created with:
 	
 ## Installation
 
-The sources are located on github: https://github.com/cheshirepezz/GR-iPiC2D/
+The sources are located on github: https://github.com/cheshirepezz/iPiC2D
 
 To use this code:
-* Star the directory "GR-iPiC2D" 
-* Clone the github repocheshirepezz/GR-iPiC2D
+* Star the directory "iPiC2D" 
+* Clone the github repo cheshirepezz/iPiC2D
 
 Open a terminal and write the command below to clone in your PC Plasma-Recipes repo:
 
 ```
-git clone https://github.com/cheshirepezz/GR-iPiC2D.git
-cd GR-iPiC2D
+git clone https://github.com/cheshirepezz/iPiC2D.git
+cd iPiC2D
 ```
 Now choose ther topic you want to study (ex. Cartesian geometry):
 
 ```
-$ cd cartesian
-$ python cart_gr-pic.py
+$ cd Covariant
+$ python ciPiC2D.py
 ```
 ## License
 
