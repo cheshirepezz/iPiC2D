@@ -176,6 +176,7 @@ def curl(Ax1, Ax2, Ax3, field):
     curl_x1 = np.zeros([nx1, nx2, nx3], dtype=float)
     curl_x2 = np.zeros([nx1, nx2, nx3], dtype=float)
     curl_x3 = np.zeros([nx1, nx2, nx3], dtype=float)
+
     if field == 'B':
         curl_x1[ib:ie, jb:je, kb:ke] = derx2a1(Ax1, Ax2, Ax3) - derx3a1(Ax1, Ax2, Ax3)
         curl_x2[ib:ie, jb:je, kb:ke] = derx3a2(Ax1, Ax2, Ax3) - derx1a1(Ax1, Ax2, Ax3)
@@ -377,7 +378,7 @@ def particle_to_grid(x,y,q):
 
 # main cycle
 histEnergy=[]
-for it in range(nt):
+for t in range(nt):
     plt.clf()
     guess = zeros(nx* ny+2*npart, float)
     sol = newton_krylov(residual, guess, method='lgmres', verbose=1)
