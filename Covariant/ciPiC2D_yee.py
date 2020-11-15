@@ -24,7 +24,7 @@ nx, ny = 75, 75
 Lx, Ly = 1.,1.
 dx, dy = Lx/(nx-1), Ly/(ny-1)
 dt = 0.001
-nt= 100
+nt= 50
 npart = 1024
 
 P_left, P_right = 0, 0
@@ -173,7 +173,7 @@ def derx3b2(Ax1, Ax2, Ax3):
 
 def curl(Ax1, Ax2, Ax3, field): 
     ''' 
-    To compute the Curl in covariont coordinate.
+    To compute the Curl in covariant coordinate.
     '''  
     curl_x1 = np.zeros([nx1, nx2, nx3], dtype=float)
     curl_x2 = np.zeros([nx1, nx2, nx3], dtype=float)
@@ -191,7 +191,7 @@ def curl(Ax1, Ax2, Ax3, field):
 
 def div(Ax1, Ax2, Ax3):
   ''' 
-  To compute the Divergence in covariont coordinate.
+  To compute the Divergence in covariant coordinate.
   '''  
   return ((J[ib+1:ie+1, jb:je, kb:ke]*Ax1[ib+1:ie+1, jb:je, kb:ke] - J[ib:ie, jb:je, kb:ke]*Ax1[ib:ie, jb:je, kb:ke])/dx1\
     +     (J[ib:ie, jb+1:je+1, kb:ke]*Ax2[ib:ie, jb+1:je+1, kb:ke] - J[ib:ie, jb:je, kb:ke]*Ax2[ib:ie, jb:je, kb:ke])/dx2\
@@ -424,7 +424,8 @@ for t in range(nt):
     periodicBC(Bx3)
 
     Ex, Ey = Ex1, Ex2
-    divE[t] = np.sum(np.abs(div(Bx1, Bx2, Bx3)))
+    divE[t] = np.sum(div(Bx1, Bx2, Bx3))
+    print(np.sum(Ex1), np.sum(Ex2), np.sum(Ex3))
     energy = np.sum(u**2) + np.sum(v**2) + np.sum(Ex**2) + np.sum(Ey**2)
     histEnergy.append(energy)
     print('energy =', energy)
