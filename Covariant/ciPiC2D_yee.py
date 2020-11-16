@@ -19,13 +19,22 @@ from scipy.optimize import newton_krylov
 from numpy import cosh, zeros_like, mgrid, zeros
 import matplotlib.pyplot as plt
 
+'''
+Choose the tipe of visualization:
+flag_plt     -> each time step 
+flag_plt_end -> final time step
+'''
+#flag_plt = True
+flag_plt_et  = False
+flag_plt_end = True
+
 # parameters
 nx, ny = 75, 75
-Lx, Ly = 1.,1.
+Lx, Ly = 4., 4.
 dx, dy = Lx/(nx-1), Ly/(ny-1)
 dt = 0.001
-nt= 50
-npart = 1024
+nt= 200
+npart = 1000
 
 P_left, P_right = 0, 0
 P_top, P_bottom = 0, 0
@@ -36,7 +45,9 @@ nx1 = nx
 nx2 = ny
 nx3 = 3 # two layers are used for the BC
 
-# Computational domain 
+# Computational domain
+Lx1 = Lx
+Lx2 = Ly
 Lx3 = 0.25
 dx1 = dx
 dx2 = dy
@@ -71,11 +82,16 @@ curl_Ex3 = np.zeros([nx1, nx2, nx3], dtype=float)
 curl_Bx1 = np.zeros([nx1, nx2, nx3], dtype=float)
 curl_Bx2 = np.zeros([nx1, nx2, nx3], dtype=float)
 curl_Bx3 = np.zeros([nx1, nx2, nx3], dtype=float)
-# Divergence of a vector field
-divE = np.zeros(nt, dtype=float) 
 
+# Divergence of E & B field
+divE = np.zeros(nt, dtype=float) 
+divB = np.zeros(nt, dtype=float) 
+# Total field energy
+U_field = np.zeros(nt, dtype=float)
+# Total particles energy
+U_part = np.zeros(nt, dtype=float) 
 #Perturbation
-Bx3[int((nx1-1)/2), int((nx2-1)/2), :] = 0.01
+Bx3[int((nx1-1)/2), int((nx2-1)/2), :] = 0.1
 
 # Grid begin & end point
 ib = 1
@@ -98,6 +114,15 @@ y = Ly*np.random.rand(npart)
 u = V0x+VT*np.random.randn(npart)
 v = V0y+VT*np.random.randn(npart)
 q = np.ones(npart) * WP**2 / (QM*npart/Lx/Ly) 
+
+def myplot(values, name):
+    plt.figure(name)
+    plt.imshow(values.T, origin='lower', extent=[0, Lx1, 0, Lx2], aspect='equal', vmin=-0.1, vmax=0.1, cmap='plasma')
+    plt.colorbar()
+
+def myplot2(values, name):
+    plt.figure(name)
+    plt.plot(values)
 
 def derx1a1(Ax1, Ax2, Ax3):
     return  (gx3x1[ib+1:ie+1, jb:je, kb:ke]*Ax1[ib+1:ie+1, jb:je, kb:ke]  - gx3x1[ib-1:ie-1, jb:je, kb:ke]*Ax1[ib-1:ie-1, jb:je, kb:ke]\
@@ -196,7 +221,6 @@ def div(Ax1, Ax2, Ax3):
   return ((J[ib+1:ie+1, jb:je, kb:ke]*Ax1[ib+1:ie+1, jb:je, kb:ke] - J[ib:ie, jb:je, kb:ke]*Ax1[ib:ie, jb:je, kb:ke])/dx1\
     +     (J[ib:ie, jb+1:je+1, kb:ke]*Ax2[ib:ie, jb+1:je+1, kb:ke] - J[ib:ie, jb:je, kb:ke]*Ax2[ib:ie, jb:je, kb:ke])/dx2\
     +     (J[ib:ie, jb:je, kb+1:ke+1]*Ax3[ib:ie, jb:je, kb+1:ke+1] - J[ib:ie, jb:je, kb:ke]*Ax3[ib:ie, jb:je, kb:ke])/dx3)/J[ib:ie, jb:je, kb:ke]
-
 
 def periodicBC(A): 
     '''
@@ -391,6 +415,8 @@ def particle_to_grid(x,y,q):
 histEnergy=[]
 for t in range(nt):
     plt.clf()
+    print('')
+    print('TIME STEP:', t)
     guess = zeros(nx* ny+2*npart, float)
     sol = newton_krylov(residual, guess, method='lgmres', verbose=1)
     print('Residual: %g' % abs(residual(sol)).max())
@@ -407,7 +433,7 @@ for t in range(nt):
     Bx2_old[:, :, :] = Bx2[:, :, :]
     Bx3_old[:, :, :] = Bx2[:, :, :]
 
-    curl_Bx1, curl_Bx2, curl_Bx3 = curl(Bx1, Bx2, Bx3, 'B')#0
+    curl_Bx1, curl_Bx2, curl_Bx3 = curl(Bx1, Bx2, Bx3, 'B')
     Ex1 += dt*curl_Bx1
     Ex2 += dt*curl_Bx2
     Ex3 += dt*curl_Bx3
@@ -415,7 +441,7 @@ for t in range(nt):
     periodicBC(Ex2)
     periodicBC(Ex3)
 
-    curl_Ex1, curl_Ex2, curl_Ex3 = curl(Ex1, Ex2, Ex3, 'E')#1
+    curl_Ex1, curl_Ex2, curl_Ex3 = curl(Ex1, Ex2, Ex3, 'E')
     Bx1 -= dt*curl_Ex1
     Bx2 -= dt*curl_Ex2
     Bx3 -= dt*curl_Ex3
@@ -423,22 +449,62 @@ for t in range(nt):
     periodicBC(Bx2)
     periodicBC(Bx3)
 
-    Ex, Ey = Ex1, Ex2
-    divE[t] = np.sum(div(Bx1, Bx2, Bx3))
-    print(np.sum(Ex1), np.sum(Ex2), np.sum(Ex3))
-    energy = np.sum(u**2) + np.sum(v**2) + np.sum(Ex**2) + np.sum(Ey**2)
+    U_field[t] =   0.5 * np.sum(Ex1[ib:ie, jb:je, kb:ke]**2 + Ex2[ib:ie, jb:je, kb:ke]**2 + Ex2[ib:ie, jb:je, kb:ke]**2\
+    + Bx1[ib:ie, jb:je, kb:ke]*Bx1_old[ib:ie, jb:je, kb:ke] + Bx2[ib:ie, jb:je, kb:ke]*Bx2_old[ib:ie, jb:je, kb:ke]\
+    + Bx3[ib:ie, jb:je, kb:ke]*Bx3_old[ib:ie, jb:je, kb:ke])
+    U_part[t] = np.sum(u**2 + v**2)
+    divE[t] = np.sum(div(Ex1, Ex2, Ex3))
+    divB[t] = np.sum(div(Bx1, Bx2, Bx3))
+    
+    #Ex, Ey = Ex1, Ex2
+    energy = U_part[t] + U_field[t]
     histEnergy.append(energy)
-    print('energy =', energy)
-    #plt.figure(figsize =(8, 6))
-    plt.subplot(2, 2, 1)
-    plt.pcolor(xg, yg, phi)
-    plt.colorbar()
-    plt.subplot(2, 2, 2)
-    plt.plot(x,y,'.')
-    plt.subplot(2,2,3)
-    #plt.plot(histEnergy)
-    plt.plot(divE)
-    plt.subplot(2,2,4)
-    plt.plot((histEnergy-histEnergy[0])/histEnergy[0])
-    #plt.show()
-    plt.pause(0.001)
+    print('System Energy : ', energy)
+    print('Field Energy : ', U_field[t])
+    print('Particles Energy : ', np.sum(u**2) + np.sum(v**2))
+    print('E field: ', np.sum(Ex1), np.sum(Ex2), np.sum(Ex3))
+    print('B field: ', np.sum(Bx1), np.sum(Bx2), np.sum(Bx3))
+    print('div(E) : ', divE[t])
+    print('div(B) : ', divB[t])
+    
+    if flag_plt_et == True:
+        plt.figure(figsize =(10, 8))
+    
+        plt.subplot(2, 2, 1)
+        plt.pcolor(xg, yg, phi)
+        plt.title('Phi')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.colorbar()
+        plt.subplot(2, 2, 2)
+        plt.plot(x, y, '.')
+        plt.title('Particles')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.subplot(2, 2, 3)
+        plt.pcolor(xg, yg, Bx3[:,:,1])
+        plt.title('Bz Field')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.colorbar()
+        plt.subplot(2, 2, 4)
+        #plt.plot(histEnergy)
+        #plt.plot((histEnergy-histEnergy[0])/histEnergy[0])
+        plt.plot(U_field[t], U_part[t])
+        plt.title('Total Energy')
+        plt.xlabel('time')
+        plt.ylabel('U')
+        
+        plt.pause(0.001)
+        plt.clf()
+
+if flag_plt_end == True:
+    #myplot(Ex1[:,:,0], 'Ex1')
+    #myplot(Ex2[:,:,0], 'Ex2')
+    myplot(Bx3[:,:,1], 'Bx3')
+    #myplot2(divE, 'divE vs t')
+    myplot2(divB, 'divB vs t')
+    myplot2(U_field, 'U_field vs t')
+    myplot2(U_part, 'U_part vs t')
+    myplot2(histEnergy, 'U_system vs t')
+    plt.show()
