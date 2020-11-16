@@ -21,9 +21,9 @@
 # General Geometry Implicit PiC method in 2D
 
 ## Table of content
-* [Newtonian Colocated iPiC](https://github.com/cheshirepezz/ciPiC2D/tree/main/Newtonian)
-* [Relativistic Yee iPiC](https://github.com/cheshirepezz/ciPiC2D/tree/main/Relativistic)
-* [Covariant Yee iPiC](https://github.com/cheshirepezz/ciPiC2D/tree/main/Covariant)
+* [Newtonian Colocated](https://github.com/cheshirepezz/ciPiC2D/tree/main/Newtonian)
+* [Relativistic Yee](https://github.com/cheshirepezz/ciPiC2D/tree/main/Relativistic)
+* [Covariant Yee](https://github.com/cheshirepezz/ciPiC2D/tree/main/Covariant)
 
  ## Technologies
 Project is created with:
@@ -47,7 +47,7 @@ Now choose ther topic you want to study (ex. Cartesian geometry):
 
 ```
 $ cd Covariant
-$ python ciPiC2D.py
+$ python ciPiC2D_yee.py
 ```
 ## License
 
