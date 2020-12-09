@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 '''
 Choose the tipe of visualization:
-flag_plt     -> each time step 
+flag_plt     -> each time step
 flag_plt_end -> final time step
 '''
 #flag_plt = True
@@ -54,7 +54,7 @@ dx2 = dy
 dx3 = Lx3/nx3
 
 # Geometry: Tensor and Jacobian
-J     = np.ones([nx1, nx2, nx3], dtype=float) 
+J     = np.ones([nx1, nx2, nx3], dtype=float)
 gx1x1 = np.ones([nx1, nx2, nx3], dtype=float)
 gx1x2 = np.zeros([nx1, nx2, nx3], dtype=float)
 gx1x3 = np.zeros([nx1, nx2, nx3], dtype=float)
@@ -70,7 +70,7 @@ Ex2 = np.zeros([nx1, nx2, nx3], dtype=float)
 Ex3 = np.zeros([nx1, nx2, nx3], dtype=float)
 Bx1 = np.zeros([nx1, nx2, nx3], dtype=float)
 Bx2 = np.zeros([nx1, nx2, nx3], dtype=float)
-Bx3 = np.zeros([nx1, nx2, nx3], dtype=float) 
+Bx3 = np.zeros([nx1, nx2, nx3], dtype=float)
 # Field matrix (old)
 Bx1_old = np.zeros([nx1, nx2, nx3], dtype=float)
 Bx2_old = np.zeros([nx1, nx2, nx3], dtype=float)
@@ -84,12 +84,12 @@ curl_Bx2 = np.zeros([nx1, nx2, nx3], dtype=float)
 curl_Bx3 = np.zeros([nx1, nx2, nx3], dtype=float)
 
 # Divergence of E & B field
-divE = np.zeros(nt, dtype=float) 
-divB = np.zeros(nt, dtype=float) 
+divE = np.zeros(nt, dtype=float)
+divB = np.zeros(nt, dtype=float)
 # Total field energy
 U_field = np.zeros(nt, dtype=float)
 # Total particles energy
-U_part = np.zeros(nt, dtype=float) 
+U_part = np.zeros(nt, dtype=float)
 #Perturbation
 Bx3[int((nx1-1)/2), int((nx2-1)/2), :] = 0.1
 
@@ -113,7 +113,7 @@ x = Lx*np.random.rand(npart)
 y = Ly*np.random.rand(npart)
 u = V0x+VT*np.random.randn(npart)
 v = V0y+VT*np.random.randn(npart)
-q = np.ones(npart) * WP**2 / (QM*npart/Lx/Ly) 
+q = np.ones(npart) * WP**2 / (QM*npart/Lx/Ly)
 
 def myplot(values, name):
     plt.figure(name)
@@ -196,10 +196,10 @@ def derx3b2(Ax1, Ax2, Ax3):
         +       gx1x2[ib:ie, jb-1:je-1, kb+1:ke+1]*Ax2[ib:ie, jb-1:je-1, kb+1:ke+1] - gx1x2[ib:ie, jb-1:je-1, kb:ke]*Ax2[ib:ie, jb-1:je-1, kb:ke]\
         +       gx1x3[ib:ie, jb:je, kb+1:ke+1]*Ax3[ib:ie, jb:je, kb+1:ke+1]         - gx1x3[ib:ie, jb:je, kb-1:ke-1]*Ax3[ib:ie, jb:je, kb-1:ke-1])/(2.*dx3*J[ib:ie, jb:je, kb:ke])
 
-def curl(Ax1, Ax2, Ax3, field): 
-    ''' 
+def curl(Ax1, Ax2, Ax3, field):
+    '''
     To compute the Curl in covariant coordinate.
-    '''  
+    '''
     curl_x1 = np.zeros([nx1, nx2, nx3], dtype=float)
     curl_x2 = np.zeros([nx1, nx2, nx3], dtype=float)
     curl_x3 = np.zeros([nx1, nx2, nx3], dtype=float)
@@ -209,22 +209,22 @@ def curl(Ax1, Ax2, Ax3, field):
         curl_x2[ib:ie, jb:je, kb:ke] = derx3a2(Ax1, Ax2, Ax3) - derx1a1(Ax1, Ax2, Ax3)
         curl_x3[ib:ie, jb:je, kb:ke] = derx1a2(Ax1, Ax2, Ax3) - derx2a2(Ax1, Ax2, Ax3)
     elif field == 'E':
-        curl_x1[ib:ie, jb:je, kb:ke] = derx2b1(Ax1, Ax2, Ax3) - derx3b1(Ax1, Ax2, Ax3)  
+        curl_x1[ib:ie, jb:je, kb:ke] = derx2b1(Ax1, Ax2, Ax3) - derx3b1(Ax1, Ax2, Ax3)
         curl_x2[ib:ie, jb:je, kb:ke] = derx3b2(Ax1, Ax2, Ax3) - derx3b1(Ax1, Ax2, Ax3)
         curl_x3[ib:ie, jb:je, kb:ke] = derx1b2(Ax1, Ax2, Ax3) - derx2b2(Ax1, Ax2, Ax3)
     return curl_x1, curl_x2, curl_x3
 
 def div(Ax1, Ax2, Ax3):
-  ''' 
+  '''
   To compute the Divergence in covariant coordinate.
-  '''  
+  '''
   return ((J[ib+1:ie+1, jb:je, kb:ke]*Ax1[ib+1:ie+1, jb:je, kb:ke] - J[ib:ie, jb:je, kb:ke]*Ax1[ib:ie, jb:je, kb:ke])/dx1\
     +     (J[ib:ie, jb+1:je+1, kb:ke]*Ax2[ib:ie, jb+1:je+1, kb:ke] - J[ib:ie, jb:je, kb:ke]*Ax2[ib:ie, jb:je, kb:ke])/dx2\
     +     (J[ib:ie, jb:je, kb+1:ke+1]*Ax3[ib:ie, jb:je, kb+1:ke+1] - J[ib:ie, jb:je, kb:ke]*Ax3[ib:ie, jb:je, kb:ke])/dx3)/J[ib:ie, jb:je, kb:ke]
 
-def periodicBC(A): 
+def periodicBC(A):
     '''
-    To impose periodic BC, the border of the grid domain is used 
+    To impose periodic BC, the border of the grid domain is used
     to impose periodicity in each direction.
     '''
     A_w = np.zeros([nx1, nx2, nx3], dtype=float)
@@ -240,10 +240,10 @@ def periodicBC(A):
     A[:, 0, :]  = A[:, -1, :]   # south = north
     A[:, -1, :] = A_s[:, 0, :]  # north = south
     A[:, :, 0]  = A[:, :, -1]   # bottom = top
-    A[:, :, -1] = A_b[:, :, 0]  # top = bottom  
+    A[:, :, -1] = A_b[:, :, 0]  # top = bottom
 
 def phys_to_krylov(phi,u,v):
-    ''' 
+    '''
     To populate the Krylov vector using physiscs vectors
     Phi is a 2D array of dimension (nx,ny)
     u of dimensions npart
@@ -256,7 +256,7 @@ def phys_to_krylov(phi,u,v):
     return ykrylov
 
 def krylov_to_phys(xkrylov):
-    ''' 
+    '''
     To populate the physiscs vectors using the Krylov space vector
     Phi is a 2D array of dimension (nx,ny)
     ubar of dimensions npart
@@ -270,7 +270,7 @@ def krylov_to_phys(xkrylov):
     return P, ubar, vbar
 
 def e_field(P):
-    ''' 
+    '''
     To compute the electric field from the potential
     '''
     Ex = zeros((nx, ny), float)
@@ -286,17 +286,17 @@ def e_field(P):
     return Ex, Ey
 
 def laplacian(P):
-    ''' 
+    '''
     To compute the Laplacian in uniform grid
     '''
     d2x = zeros((nx, ny), float)
     d2y = zeros((nx, ny), float)
     d2x[1:-1] = (P[2:]   - 2*P[1:-1] + P[:-2]) / dx/dx
     #d2x[0]    = (P[1]    - 2*P[0]    + P_left)/dx/dx
-    d2x[0]    = (P[1] - 2*P[0]    + P[-1])/dx/dx 
+    d2x[0]    = (P[1] - 2*P[0]    + P[-1])/dx/dx
     #d2x[-1]   = (P_right - 2*P[-1]   + P[-2])/dx/dx
     d2x[-1]   = (P[0] - 2*P[-1]   + P[-2])/dx/dx
-    
+
 
     d2y[:,1:-1] = (P[:,2:] - 2*P[:,1:-1] + P[:,:-2])/dy/dy
     #d2y[:,0]    = (P[:,1]  - 2*P[:,0]    + P_bottom)/dy/dy
@@ -306,21 +306,21 @@ def laplacian(P):
     return d2x + d2y
 
 def residual(xkrylov):
-    ''' 
+    '''
     Calculation of the residual of the equations
     This is the most important part: the definion of the problem
     '''
     global Ex1, Ex2, Ex3, Bx1, Bx2, Bx3, Bx1_old, Bx2_old, Bx3_old
     P, ubar, vbar = krylov_to_phys(xkrylov)
-    
+
     xbar = x + ubar*dt/2
     ybar = y + vbar*dt/2
     xbar = xbar%Lx
     ybar = ybar%Ly
-    
+
     source = particle_to_grid(xbar,ybar,q)
-    source = source - np.mean(source) 
-    
+    source = source - np.mean(source)
+
     lap = laplacian(P)
 
     res = lap + source
@@ -354,12 +354,12 @@ def residual(xkrylov):
 
     resu = ubar - u - QM* Exp *dt/2
     resv = vbar - v - QM* Eyp *dt/2
-    
+
     ykrylov = phys_to_krylov(res,resu,resv)
     return  ykrylov
 
-def grid_to_particle(x,y,E):  
-    ''' 
+def grid_to_particle(x,y,E):
+    '''
     Interpolation grid to particle
     '''
     global dx, dy, nx, ny, npart
@@ -374,18 +374,18 @@ def grid_to_particle(x,y,E):
       i1 = int(xa)
       i2 = i1 + 1
       j1 = int(ya)
-      j2 = j1 + 1      
+      j2 = j1 + 1
       wx2 = xa - i1
       wx1 = 1.0 - wx2
       wy2 = ya - j1
       wy1 = 1.0 - wy2
-      Ep[i] = wx1* wy1 * E[i1,j1,k1] + wx2* wy1 * E[i2,j1,k1] + wx1* wy2 * E[i1,j2,k1] + wx2* wy2 * E[i2,j2,k1]  
+      Ep[i] = wx1* wy1 * E[i1,j1,k1] + wx2* wy1 * E[i2,j1,k1] + wx1* wy2 * E[i1,j2,k1] + wx2* wy2 * E[i2,j2,k1]
     return Ep
 
-def particle_to_grid(x,y,q): 
-    ''' 
+def particle_to_grid(x,y,q):
+    '''
     Interpolation particle to grid
-    ''' 
+    '''
     global dx, dy, nx, ny, npart
     r =  zeros((nx, ny), float)
 
@@ -396,19 +396,19 @@ def particle_to_grid(x,y,q):
       i1 = int(xa)
       i2 = i1 + 1
       if(i2==nx):
-          i2=0 
+          i2=0
       j1 = int(ya)
-      j2 = j1 + 1  
+      j2 = j1 + 1
       if(j2==ny):
-          j2=0    
+          j2=0
       wx2 = xa - i1
       wx1 = 1.0 - wx2
       wy2 = ya - j1
       wy1 = 1.0 - wy2
-      r[i1,j1] += wx1* wy1 * q[i] 
-      r[i2,j1] += wx2* wy1 * q[i] 
-      r[i1,j2] += wx1* wy2 * q[i] 
-      r[i2,j2] += wx2* wy2 * q[i] 
+      r[i1,j1] += wx1* wy1 * q[i]
+      r[i2,j1] += wx2* wy1 * q[i]
+      r[i1,j2] += wx1* wy2 * q[i]
+      r[i2,j2] += wx2* wy2 * q[i]
     return r
 
 # main cycle
@@ -455,7 +455,7 @@ for t in range(nt):
     U_part[t] = np.sum(u**2 + v**2)
     divE[t] = np.sum(div(Ex1, Ex2, Ex3))
     divB[t] = np.sum(div(Bx1, Bx2, Bx3))
-    
+
     #Ex, Ey = Ex1, Ex2
     energy = U_part[t] + U_field[t]
     histEnergy.append(energy)
@@ -466,10 +466,10 @@ for t in range(nt):
     print('B field: ', np.sum(Bx1), np.sum(Bx2), np.sum(Bx3))
     print('div(E) : ', divE[t])
     print('div(B) : ', divB[t])
-    
+
     if flag_plt_et == True:
         plt.figure(figsize =(10, 8))
-    
+
         plt.subplot(2, 2, 1)
         plt.pcolor(xg, yg, phi)
         plt.title('Phi')
@@ -494,7 +494,7 @@ for t in range(nt):
         plt.title('Total Energy')
         plt.xlabel('time')
         plt.ylabel('U')
-        
+
         plt.pause(0.001)
         plt.clf()
 
