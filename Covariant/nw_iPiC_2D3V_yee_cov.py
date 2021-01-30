@@ -283,7 +283,7 @@ flag_plt_et  = True
 flag_plt_end = False
 
 # parameters
-nx, ny = 10, 9
+nx, ny = 10, 10
 Lx, Ly = 4., 4.
 dx, dy = Lx/(nx - 1), Ly/(ny - 1)
 dt = 0.01
@@ -488,7 +488,7 @@ for t in range(nt):
         plt.plot(x[npart1:npart], y[npart1:npart], 'b.')
         plt.xlim((0, Lx))
         plt.ylim((0, Ly))
-        plt.title('Phase space')
+        plt.title('Map of Particles')
         plt.xlabel('x')
         plt.ylabel('y')
         plt.subplot(2,3, 3)
