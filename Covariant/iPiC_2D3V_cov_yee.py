@@ -1,7 +1,7 @@
 """
-Fully Implicit, Relativistic Particle-in-Cell - 2D3V Electromagnetic - 2 species
-Authors: G. Lapenta, F. Bacchini
-Date: 20 Oct 2020
+Fully Implicit, Covariant Particle-in-Cell - 2D3V Electromagnetic - 2 species
+Authors: G. Lapenta, F. Bacchini, L. Pezzini
+Date: 30 Gen 2021
 Copyright 2020 KULeuven
 MIT License.
 """
