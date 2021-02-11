@@ -1,39 +1,128 @@
 """
-Fully Implicit, Covariant Particle-in-Cell - 2D3V Electromagnetic - 2 species
+Fully Implicit, Relativistic Particle-in-Cell - 2D3V Electromagnetic - 2 species
 Authors: G. Lapenta, F. Bacchini, L. Pezzini
-Date: 30 Gen 2021
+Date: 20 Oct 2020
 Copyright 2020 KULeuven
 MIT License.
 """
 
 import numpy as np
 from scipy.optimize import newton_krylov
-from numpy import cosh, zeros_like, mgrid, zeros
+from numpy import cosh, zeros_like, mgrid, zeros, ones
 import matplotlib.pyplot as plt
 import sys
 
+# flags
+plot_each_step = True
+plot_data      = False
+plot_dir       = False
+relativistic   = False
+
 # parameters
-nx, ny = 16, 16
+nx, ny = 20, 20
 nxc, nyc = nx, ny
 nxn, nyn = nxc+1, nyc+1
-Lx, Ly = 4.,4.
+Lx, Ly = 10.,10.
 dx, dy = Lx/nxc, Ly/nyc
 dt = 0.05
-nt = 30
+nt = 71
 
-# grid of centres C
+# Species 1
+# Constaint: npar1 must be a squered number and mub preserve an integer nppc
+nppc = 4 # per species
+npart1 = nx * ny * nppc
+WP1 = 1.  # Plasma frequency
+QM1 = - 1.  # Charge/mass ratio
+V0x1 = 3.  # Stream velocity
+V0y1 = 3.  # Stream velocity
+V0z1 = 3.  # Stream velocity
+VT1 = 0.1  # thermal velocity
+# Species 2
+npart2 = npart1
+WP2 = 1.  # Plasma frequency 
+QM2 =  1.  # Charge/mass ratio
+V0x2 = 3.  # Stream velocity
+V0y2 = 3.  # Stream velocity
+V0z2 = 3.  # Stream velocity
+VT2 = 0.1  # thermal velocity
+
+npart = npart1+npart2
+QM = zeros(npart, np.float64)
+QM[0:npart1] = QM1
+QM[npart1:npart] = QM2
+
+# INIT PARTICLES
+np.random.seed(1)
+
+dxp = Lx/np.sqrt(npart1)
+dyp = Ly/np.sqrt(npart1)
+xp, yp = mgrid[dxp/2.:Lx-dxp/2.:(np.sqrt(npart1)*1j), dyp/2.:Ly-dyp/2.:(np.sqrt(npart1)*1j)]
+
+x = zeros(npart, np.float64)
+print(xp.reshape(npart1))
+x[0:npart1] = xp.reshape(npart1)
+#x[0:npart1] = Lx*np.random.rand(npart1)
+x[npart1:npart] = x[0:npart1]
+
+y = zeros(npart, np.float64)
+y[0:npart1] = yp.reshape(npart1)
+#y[0:npart1] = Ly*np.random.rand(npart1)
+y[npart1:npart] = y[0:npart1]
+
+u = zeros(npart, np.float64)
+# Stable plasma
+u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
+u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
+# Two stream instability
+#u[0:npart1] = V0x1+VT1*np.sin(npart1)
+#u[npart1:npart] = V0x2+VT2*np.sin(npart2)
+
+v = zeros(npart, np.float64)
+# Stable plasma
+#v[0:npart1] = V0x1+VT1*np.random.randn(npart1)
+#v[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
+# Two stream instability
+v[0:npart1] = V0y1+VT1*np.sin(x[0:npart1]/Lx)
+v[npart1:npart] = V0y2+VT2*np.sin(x[npart1:npart]/Lx)
+
+w = zeros(npart, np.float64)
+# Stable plasma
+w[0:npart1] = V0z1+VT1*np.random.randn(npart1)
+w[npart1:npart] = V0z2+VT2*np.random.randn(npart2)
+# Two stream instability
+#w[0:npart1] = V0x1+VT1*np.sin(npart1)
+#w[npart1:npart] = V0x2+VT2*np.sin(npart2)
+
+q = zeros(npart, np.float64) 
+q[0:npart1] = np.ones(npart1) * WP1**2 / (QM1*npart1/Lx/Ly)
+q[npart1:npart] = np.ones(npart2) * WP2**2 / (QM2*npart2/Lx/Ly)
+
+if relativistic:
+  g = 1./np.sqrt(1.-(u**2+v**2+w**2))
+  u = u*g
+  v = v*g
+  w = w*g
+
+# INIT GRID
+# grid of centres c
 xc, yc = mgrid[dx/2.:Lx-dx/2.:(nxc*1j), dy/2.:Ly-dy/2.:(nyc*1j)]
 # grid of left-right faces LR
 xLR, yLR = mgrid[0.:Lx:(nxn*1j), dy/2.:Ly-dy/2.:(nyc*1j)]
 # grid of up-down faces UD
 xUD, yUD = mgrid[dx/2.:Lx-dx/2.:(nxc*1j), 0.:Ly:(nyn*1j)]
-# grid of corners N
+# grid of corners n
 xn, yn = mgrid[0.:Lx:(nxn*1j), 0.:Ly:(nyn*1j)]
 
+divE = zeros(nt, np.float64)
+divB = zeros(nt, np.float64)
+rho = zeros(np.shape(xc), np.float64)
+
+# INIT FIELDS
 # defined on grid LR:        Ex, Jx, By
 # defined on grid UD:        Ey, Jy, Bx
 # defined on grid centres c: Ez, Jz, rho
 # defined on grid corners n: Bz
+
 Ex = zeros(np.shape(xLR),np.float64)
 Ey = zeros(np.shape(xUD),np.float64)
 Ez = zeros(np.shape(xc),np.float64)
@@ -41,16 +130,13 @@ Bx = zeros(np.shape(xUD),np.float64)
 By = zeros(np.shape(xLR),np.float64)
 Bz = zeros(np.shape(xn),np.float64)
 
-# defined on grid LR:        (g11, g21, g31)[nx, ny, 0] 
-#                            (g12, g22, g32)[nx, ny, 1]
-# defined on grid UD:        (g12, g22, g32)[nx, ny, 0] 
-#                            (g11, g21, g31)[nx, ny, 1]
-# defined on grid centres c: (g12, g23, g33)[nx, ny, 0]
-# defined on grid corners n: (g12, g23, g33)[nx, ny, 1]
-J_UD = np.ones(np.shape(xUD), np.float64)
-J_LR = np.ones(np.shape(xLR), np.float64)
-J_c  = np.ones(np.shape(xc), np.float64)
-J_n  = np.ones(np.shape(xn), np.float64)
+# INIT METRIC TENSOR
+# defined on grid LR:        (g11e, g21e, g31e)E1
+#                            (g12b, g22b, g32b)B1
+# defined on grid UD:        (g12e, g22e, g32e)E2
+#                            (g11b, g21b, g31b)B2
+# defined on grid centres c: (g12e, g23e, g33e)E3
+# defined on grid corners n: (g12b, g23b, g33b)B3
 
 g11e = np.ones(np.shape(xLR), np.float64)
 g12e = np.zeros(np.shape(xUD), np.float64)
@@ -72,29 +158,133 @@ g31b = np.zeros(np.shape(xUD), np.float64)
 g32b = np.zeros(np.shape(xLR), np.float64)
 g33b = np.ones(np.shape(xn), np.float64)
 
-relativistic = False
+# INIT JACOBIAN DETERMINANT
 
-# Species 1
-npart1 = 1024
-WP1 = 1. # Plasma frequency
-QM1 = -1. # Charge/mass ratio
-V0x1 = 1. # Stream velocity
-V0y1 = 1. # Stream velocity
-V0z1 = 1. # Stream velocity
-VT1 = 0.01 # thermal velocity
-# Species 2
-npart2 = npart1
-WP2 = 1. # Plasma frequency
-QM2 = -1. # Charge/mass ratio
-V0x2 = 1. # Stream velocity
-V0y2 = 1. # Stream velocity
-V0z2 = 1. # Stream velocity
-VT2 = 0.01 # thermal velocity
+J_UD = np.ones(np.shape(xUD), np.float64)
+J_LR = np.ones(np.shape(xLR), np.float64)
+J_C = np.ones(np.shape(xc), np.float64)
+J_N = np.ones(np.shape(xn), np.float64)
 
-npart = npart1+npart2
-QM = zeros(npart,np.float64)
-QM[0:npart1] = QM1
-QM[npart1:npart] = QM2
+# INIT JACOBIAN MATRIX
+# defined on grid LR:        (j12e, j23e, j33e)E1, J1
+#                            (j12b, j23b, j33b)B1
+# defined on grid UD:        (J12e, J22e, J32e)E2, J2
+#                            (J12b, J22b, J32b)B2
+# defined on grid centres c: (J12e, J22e, J32e)E3, J3
+#                            (J12b, J22b, J32b)B3
+
+J11e = np.ones(np.shape(xLR), np.float64)
+J12e = np.zeros(np.shape(xUD), np.float64)
+J13e = np.zeros(np.shape(xc), np.float64)
+J21e = np.zeros(np.shape(xLR), np.float64)
+J22e = np.ones(np.shape(xUD), np.float64)
+J23e = np.zeros(np.shape(xc), np.float64)
+J31e = np.zeros(np.shape(xLR), np.float64)
+J32e = np.zeros(np.shape(xUD), np.float64)
+J33e = np.ones(np.shape(xc), np.float64)
+
+J11b = np.ones(np.shape(xUD), np.float64)
+J12b = np.zeros(np.shape(xLR), np.float64)
+J13b = np.zeros(np.shape(xn), np.float64)
+J21b = np.zeros(np.shape(xUD), np.float64)
+J22b = np.ones(np.shape(xLR), np.float64)
+J23b = np.zeros(np.shape(xn), np.float64)
+J31b = np.zeros(np.shape(xUD), np.float64)
+J32b = np.zeros(np.shape(xLR), np.float64)
+J33b = np.ones(np.shape(xn), np.float64)
+
+# INIT INVERSE JACOBIAN MATRIX
+# defined on grid LR:        (j11e, j21e, j31e)E1, J1
+#                            (j11b, j21b, j31b)B1
+# defined on grid UD:        (j12e, j22e, j32e)E2, J2
+#                            (j12b, j22b, j32b)B2
+# defined on grid centres c: (j12e, j23e, j33e)E3, J3
+#                            (j12b, j23b, j33b)B3
+
+j11e = np.ones(np.shape(xLR), np.float64)
+j12e = np.zeros(np.shape(xUD), np.float64)
+j13e = np.zeros(np.shape(xc), np.float64)
+j21e = np.zeros(np.shape(xLR), np.float64)
+j22e = np.ones(np.shape(xUD), np.float64)
+j23e = np.zeros(np.shape(xc), np.float64)
+j31e = np.zeros(np.shape(xLR), np.float64)
+j32e = np.zeros(np.shape(xUD), np.float64)
+j33e = np.ones(np.shape(xc), np.float64)
+
+j11b = np.ones(np.shape(xUD), np.float64)
+j12b = np.zeros(np.shape(xLR), np.float64)
+j13b = np.zeros(np.shape(xn), np.float64)
+j21b = np.zeros(np.shape(xUD), np.float64)
+j22b = np.ones(np.shape(xLR), np.float64)
+j23b = np.zeros(np.shape(xn), np.float64)
+j31b = np.zeros(np.shape(xUD), np.float64)
+j32b = np.zeros(np.shape(xLR), np.float64)
+j33b = np.ones(np.shape(xn), np.float64)
+
+def myplot(values, name):
+    '''
+    To plot the Map of a vector fied over a grid.
+    '''
+    plt.figure(name)
+    plt.imshow(values.T, origin='lower', extent=[
+               0, Lx, 0, Ly], aspect='equal', vmin=-0.01, vmax=0.01)  # ,cmap='plasma')
+    plt.colorbar()
+
+def dirder(field, dertype):
+    ''' To take the directional derivative of a quantity
+        dertype defines input/output grid type and direction
+    '''
+    global nxn, nyn, nxc, nyc, dx, dy
+
+    if dertype == 'C2UD':  # centres to UD faces, y-derivative
+      derfield = zeros((nxc, nyn), np.float64)
+
+      derfield[0:nxc, 1:nyn-1] = (field[0:nxc, 1:nyc]-field[0:nxc, 0:nyc-1])/dy
+      derfield[0:nxc, 0] = (field[0:nxc, 0]-field[0:nxc, nyc-1])/dy
+      derfield[0:nxc, nyn-1] = derfield[0:nxc, 0]
+
+    elif dertype == 'C2LR':  # centres to LR faces, x-derivative
+      derfield = zeros((nxn, nyc), np.float64)
+
+      derfield[1:nxn-1, 0:nyc] = (field[1:nxc, 0:nyc]-field[0:nxc-1, 0:nyc])/dx
+      derfield[0, 0:nyc] = (field[0, 0:nyc]-field[nxc-1, 0:nyc])/dx
+      derfield[nxn-1, 0:nyc] = derfield[0, 0:nyc]
+
+    elif dertype == 'UD2N':  # UD faces to nodes, x-derivative
+      derfield = zeros((nxn, nyn), np.float64)
+
+      derfield[1:nxn-1, 0:nyn] = (field[1:nxc, 0:nyn]-field[0:nxc-1, 0:nyn])/dx
+      derfield[0, 0:nyn] = (field[0, 0:nyn]-field[nxc-1, 0:nyn])/dx
+      derfield[nxn-1, 0:nyn] = derfield[0, 0:nyn]
+
+    elif dertype == 'LR2N':  # LR faces to nodes, y-derivative
+      derfield = zeros((nxn, nyn), np.float64)
+
+      derfield[0:nxn, 1:nyn-1] = (field[0:nxn, 1:nyc]-field[0:nxn, 0:nyc-1])/dy
+      derfield[0:nxn, 0] = (field[0:nxn, 0]-field[0:nxn, nyc-1])/dy
+      derfield[0:nxn, nyn-1] = derfield[0:nxn, 0]
+
+    elif dertype == 'N2LR':  # nodes to LR faces, y-derivative
+      derfield = zeros((nxn, nyc), np.float64)
+
+      derfield[0:nxn, 0:nyc] = (field[0:nxn, 1:nyn]-field[0:nxn, 0:nyn-1])/dy
+
+    elif dertype == 'N2UD':  # nodes to UD faces, x-derivative
+      derfield = zeros((nxc, nyn), np.float64)
+
+      derfield[0:nxc, 0:nyn] = (field[1:nxn, 0:nyn]-field[0:nxn-1, 0:nyn])/dx
+
+    elif dertype == 'LR2C':  # LR faces to centres, x-derivative
+      derfield = zeros((nxc, nyc), np.float64)
+
+      derfield[0:nxc, 0:nyc] = (field[1:nxn, 0:nyc]-field[0:nxn-1, 0:nyc])/dx
+
+    elif dertype == 'UD2C':  # UD faces to centres, y-derivative
+      derfield = zeros((nxc, nyc), np.float64)
+
+      derfield[0:nxc, 0:nyc] = (field[0:nxc, 1:nyn]-field[0:nxc, 0:nyn-1])/dy
+
+    return derfield
 
 def avgC2N(fieldC):
     ''' To average a 2D field defined on centres to the nodes
@@ -173,78 +363,35 @@ def avg(field, avgtype):
 
 def curl(fieldx,fieldy,fieldz,fieldtype):
     ''' To take the curl of either E or B
-    fieltype=='E': input -> LR,UD,C, output -> UD,LR,N
-    fieltype=='B': input -> UD,LR,N, output -> LR,UD,C
+    fieltype=='E': input -> LR,UD,c, output -> UD,LR,n
+    fieltype=='B': input -> UD,LR,n, output -> LR,UD,c
     '''
     if fieldtype=='E':
       curl_x =   (dirder(avg(g31e * fieldx, 'LR2C'), 'C2UD') + dirder(avg(g32e * fieldy, 'UD2C'), 'C2UD') + dirder(g33e * fieldz, 'C2UD'))/J_UD
       curl_y = - (dirder(avg(g31e * fieldx, 'LR2C'), 'C2LR') + dirder(avg(g32e * fieldy, 'UD2C'), 'C2LR') + dirder(g33e * fieldz, 'C2LR'))/J_LR
       curl_z = (dirder(avg(avg(g21e * fieldx, 'LR2C'),'C2UD'), 'UD2N') + dirder(g22e * fieldy, 'UD2N') + dirder(avg(g13e * fieldz, 'C2UD'), 'UD2N')
-              - dirder(g11e * fieldx, 'LR2N') + dirder(avg(avg(g12e * fieldy, 'UD2C'), 'C2LR'), 'LR2N') + dirder(avg(g13e * fieldz, 'C2LR'), 'LR2N'))/J_n
+              - dirder(g11e * fieldx, 'LR2N') + dirder(avg(avg(g12e * fieldy, 'UD2C'), 'C2LR'), 'LR2N') + dirder(avg(g13e * fieldz, 'C2LR'), 'LR2N'))/J_N
 
-    else:
+    elif fieldtype == 'B':
       curl_x=   (dirder(avg(g31b * fieldx, 'UD2N'), 'N2LR') + dirder(avg(g32b * fieldy, 'LR2N'), 'N2LR') + dirder(g33b * fieldz, 'N2LR'))/J_LR
       curl_y= - (dirder(avg(g31b * fieldx, 'UD2N'), 'N2UD') + dirder(avg(g32b * fieldy, 'LR2N'), 'N2UD') + dirder(g33b * fieldz, 'N2UD'))/J_UD
       curl_z=   (dirder(avg(avg(g21b * fieldx, 'UD2N'), 'N2LR'), 'LR2C') + dirder(g22b * fieldy, 'LR2C') + dirder(avg(g13b * fieldz, 'N2LR'), 'LR2C')
-              - dirder(g11b * fieldx, 'UD2C') + dirder(avg(avg(g12b * fieldy, 'LR2N'), 'N2UD'), 'UD2C') + dirder(avg(g13b * fieldz, 'N2UD'), 'UD2C'))/J_c
+              - dirder(g11b * fieldx, 'UD2C') + dirder(avg(avg(g12b * fieldy, 'LR2N'), 'N2UD'), 'UD2C') + dirder(avg(g13b * fieldz, 'N2UD'), 'UD2C'))/J_C
 
     return curl_x, curl_y, curl_z
 
-def dirder(field,dertype):
-    ''' To take the directional derivative of a quantity
-        dertype defines input/output grid type and direction
+def div(fieldx, fieldy, fieldz, fieldtype):
+    ''' To take the divergence of either E or B
+    fieltype=='E': input -> LR,UD,c, output -> c,c,c
+    fieltype=='B': input -> UD,LR,n, output -> n,n,n
     '''
-    global nxn,nyn,nxc,nyc,dx,dy
+    if fieldtype == 'E':
+        div = (dirder(fieldx, 'LR2C') + dirder(fieldy, 'UD2C'))/J_C
 
-    if dertype=='C2UD': # centres to UD faces, y-derivative
-      derfield = zeros((nxc,nyn),np.float64)
+    elif fieldtype == 'B':
+        div = (dirder(fieldx, 'UD2N') + dirder(fieldy, 'LR2N'))/J_N
 
-      derfield[0:nxc,1:nyn-1] = (field[0:nxc,1:nyc]-field[0:nxc,0:nyc-1])/dy
-      derfield[0:nxc,0] = (field[0:nxc,0]-field[0:nxc,nyc-1])/dy
-      derfield[0:nxc,nyn-1] = derfield[0:nxc,0]
-
-    elif dertype=='C2LR': # centres to LR faces, x-derivative
-      derfield = zeros((nxn,nyc),np.float64)
-
-      derfield[1:nxn-1,0:nyc] = (field[1:nxc,0:nyc]-field[0:nxc-1,0:nyc])/dx
-      derfield[0,0:nyc] = (field[0,0:nyc]-field[nxc-1,0:nyc])/dx
-      derfield[nxn-1,0:nyc] = derfield[0,0:nyc]
-
-    elif dertype=='UD2N': # UD faces to nodes, x-derivative
-      derfield = zeros((nxn,nyn),np.float64)
-
-      derfield[1:nxn-1,0:nyn] = (field[1:nxc,0:nyn]-field[0:nxc-1,0:nyn])/dx
-      derfield[0,0:nyn] = (field[0,0:nyn]-field[nxc-1,0:nyn])/dx
-      derfield[nxn-1,0:nyn] = derfield[0,0:nyn]
-
-    elif dertype=='LR2N': # LR faces to nodes, y-derivative
-      derfield = zeros((nxn,nyn),np.float64)
-
-      derfield[0:nxn,1:nyn-1] = (field[0:nxn,1:nyc]-field[0:nxn,0:nyc-1])/dy
-      derfield[0:nxn,0] = (field[0:nxn,0]-field[0:nxn,nyc-1])/dy
-      derfield[0:nxn,nyn-1] = derfield[0:nxn,0]
-
-    elif dertype=='N2LR': # nodes to LR faces, y-derivative
-      derfield = zeros((nxn,nyc),np.float64)
-
-      derfield[0:nxn,0:nyc] = (field[0:nxn,1:nyn]-field[0:nxn,0:nyn-1])/dy
-
-    elif dertype=='N2UD': # nodes to UD faces, x-derivative
-      derfield = zeros((nxc,nyn),np.float64)
-
-      derfield[0:nxc,0:nyn] = (field[1:nxn,0:nyn]-field[0:nxn-1,0:nyn])/dx
-
-    elif dertype=='LR2C': # LR faces to centres, x-derivative
-      derfield = zeros((nxc,nyc),np.float64)
-
-      derfield[0:nxc,0:nyc] = (field[1:nxn,0:nyc]-field[0:nxn-1,0:nyc])/dx
-      
-    elif dertype=='UD2C': # UD faces to centres, y-derivative
-      derfield = zeros((nxc,nyc),np.float64)
-
-      derfield[0:nxc,0:nyc] = (field[0:nxc,1:nyn]-field[0:nxc,0:nyn-1])/dy
-
-    return derfield
+    return div
 
 def phys_to_krylov(Exk,Eyk,Ezk,uk,vk,wk):
     ''' To populate the Krylov vector using physiscs vectors
@@ -307,23 +454,30 @@ def residual(xkrylov):
     Exbar = (Exnew+Ex)/2.
     Eybar = (Eynew+Ey)/2.
     Ezbar = (Eznew+Ez)/2.
+
     curlE_x, curlE_y, curlE_z = curl(Exbar,Eybar,Ezbar,'E')
+
     Bxbar = Bx - dt/2.*curlE_x
     Bybar = By - dt/2.*curlE_y
     Bzbar = Bz - dt/2.*curlE_z
 
     curlB_x, curlB_y, curlB_z = curl(Bxbar,Bybar,Bzbar,'B')
 
-    resEx = Exnew - Ex - dt*curlB_x + dt*Jx
-    resEy = Eynew - Ey - dt*curlB_y + dt*Jy
-    resEz = Eznew - Ez - dt*curlB_z + dt*Jz
+    Jxgen, Jygen, Jzgen = cartesian_to_general(Jx, Jy, Jz, 'J')
     
-    Exp = grid_to_particle(xbar,ybar,Exbar,'LR')
-    Eyp = grid_to_particle(xbar,ybar,Eybar,'UD')
-    Ezp = grid_to_particle(xbar,ybar,Ezbar,'C')
-    Bxp = grid_to_particle(xbar,ybar,Bxbar,'UD')
-    Byp = grid_to_particle(xbar,ybar,Bybar,'LR')
-    Bzp = grid_to_particle(xbar,ybar,Bzbar,'N')
+    resEx = Exnew - Ex - dt*curlB_x + dt*Jxgen
+    resEy = Eynew - Ey - dt*curlB_y + dt*Jygen
+    resEz = Eznew - Ez - dt*curlB_z + dt*Jzgen
+
+    Excart, Eycart, Ezcart = general_to_cartesian(Exbar, Eybar, Ezbar, 'E')
+    Bxcart, Bycart, Bzcart = general_to_cartesian(Bxbar, Bybar, Bzbar, 'B')
+
+    Exp = grid_to_particle(xbar,ybar,Excart,'LR')  #Exbar
+    Eyp = grid_to_particle(xbar,ybar,Eycart,'UD')  #Eybar
+    Ezp = grid_to_particle(xbar,ybar,Ezcart,'C')   #Ezbar
+    Bxp = grid_to_particle(xbar,ybar,Bxcart,'UD')  #Bxbar
+    Byp = grid_to_particle(xbar,ybar,Bycart,'LR')  #Bybar
+    Bzp = grid_to_particle(xbar,ybar,Bzcart,'N')   #Bzbar
 
     resu = unew - u - QM * (Exp + vbar/gbar*Bzp - wbar/gbar*Byp)*dt
     resv = vnew - v - QM * (Eyp - ubar/gbar*Bzp + wbar/gbar*Bxp)*dt
@@ -372,6 +526,41 @@ def grid_to_particle(xk,yk,f,gridtype):
     
     return fp
 
+def particle_to_grid(x, y, q):
+    ''' Interpolation particle to grid p -> n
+    '''
+    global dx, dy, nx, ny, npart
+
+    r = zeros((nx, ny), np.float64)#*nppc*2
+    for i in range(npart):
+
+      #  interpolate field Ex from grid to particle */
+      xa = x[i]/dx
+      ya = y[i]/dy
+      i1 = int(xa)
+      i2 = i1 + 1
+
+      if(i2 == nx):
+          i2 = 0
+
+      j1 = int(ya)
+      j2 = j1 + 1
+
+      if(j2 == ny):
+          j2 = 0
+
+      wx2 = xa - i1
+      wx1 = 1.0 - wx2
+      wy2 = ya - j1
+      wy1 = 1.0 - wy2
+
+      r[i1, j1] += wx1 * wy1 * q[i]
+      r[i2, j1] += wx2 * wy1 * q[i]
+      r[i1, j2] += wx1 * wy2 * q[i]
+      r[i2, j2] += wx2 * wy2 * q[i]
+
+    return r
+
 def particle_to_grid_J(xk,yk,uk,vk,wk,qk): 
     ''' Interpolation particle to grid - current
     ''' 
@@ -380,6 +569,7 @@ def particle_to_grid_J(xk,yk,uk,vk,wk,qk):
     Jx = zeros(np.shape(xLR),np.float64)
     Jy = zeros(np.shape(xUD),np.float64)
     Jz = zeros(np.shape(xc),np.float64)
+
     for i in range(npart):
 
       #  interpolate p -> LR
@@ -446,38 +636,37 @@ def particle_to_grid_J(xk,yk,uk,vk,wk,qk):
 
     return Jx, Jy, Jz
 
-# initialize particles
-np.random.seed(1)
+def cartesian_to_general(cartx, carty, cartz, fieldtype):
+    ''' To convert fields from Cartesian geom. to General geom.
+        fieltype=='E' or 'J': input -> LR,UD,c, output -> LR,UD,c
+        fieltype=='B':        input -> UD,LR,n, output -> UD,LR,n
+    '''
+    if (fieldtype == 'E') or (fieldtype == 'J'):
+      genx = J_LR*J11e*cartx + avg(avg(J_UD*J12e*carty, 'UD2C'), 'C2LR')+ avg(J_C*J13e*cartz, 'C2LR')
+      geny = avg(avg(J_LR*J21e*cartx, 'LR2C'), 'C2UD') + J_UD*J22e*carty + avg(J_C*J23e*cartz, 'C2UD')
+      genz = avg(J_LR*J31e*cartx, 'LR2C') + avg(J_UD*J32e*carty, 'UD2C') + J_C*J33e*cartz
+    elif fieldtype == 'B':
+      genx = J_UD*J11b*cartx + avg(avg(J_LR*J12b*carty, 'LR2C'), 'C2UD') + avg(J_N*J13b*cartz, 'N2UD')
+      geny = avg(avg(J_UD*J21b*cartx, 'UD2C'), 'C2LR') + J_LR*J22b*carty + avg(J_N*J23b*cartz, 'N2LR')
+      genz = avg(J_UD*J31b*cartx, 'UD2N') + avg(J_LR*J32b*carty, 'LR2N') + J_N*J33b*cartz
+    
+    return genx, geny, genz
 
-dxp = Lx/np.sqrt(npart1)
-dyp = Ly/np.sqrt(npart1)
-xp,yp = mgrid[dxp/2.:Lx-dxp/2.:(np.sqrt(npart1)*1j), dyp/2.:Ly-dyp/2.:(np.sqrt(npart1)*1j)]
-
-x = zeros(npart,np.float64)
-x[0:npart1] = xp.reshape(npart1)
-#x[0:npart1] = Lx*np.random.rand(npart1)
-x[npart1:npart] = x[0:npart1]
-y = zeros(npart,np.float64)
-y[0:npart1] = yp.reshape(npart1)
-#y[0:npart1] = Ly*np.random.rand(npart1)
-y[npart1:npart] = y[0:npart1]
-u = zeros(npart,np.float64)
-u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
-u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
-v = zeros(npart,np.float64)
-v[0:npart1] = V0y1+VT1*np.random.randn(npart1)
-v[npart1:npart] = V0y2+VT2*np.random.randn(npart2)
-w = zeros(npart,np.float64)
-w[0:npart1] = V0z1+VT1*np.random.randn(npart1)
-w[npart1:npart] = V0z2+VT2*np.random.randn(npart2)
-q = zeros(npart,np.float64)
-q[0:npart1] = np.ones(npart1) * WP1**2 / (QM1*npart1/Lx/Ly)
-q[npart1:npart] = np.ones(npart2) * WP2**2 / (QM2*npart2/Lx/Ly)
-if relativistic:
-  g = 1./np.sqrt(1.-(u**2+v**2+w**2))
-  u = u*g
-  v = v*g
-  w = w*g
+def general_to_cartesian(genx, geny, genz, fieldtype):
+    ''' To convert fields from General geom. to Cartesian geom.
+        fieltype=='E' or 'J': input -> LR,UD,c, output -> LR,UD,c
+        fieltype=='B':        input -> UD,LR,n, output -> UD,LR,n
+    '''
+    if (fieldtype == 'E') or (fieldtype == 'J'):
+      cartx = J_LR*j11e*genx + avg(avg(J_UD*j12e*geny, 'UD2C'), 'C2LR')+ avg(J_C*j13e*genz, 'C2LR')
+      carty = avg(avg(J_LR*j21e*genx, 'LR2C'), 'C2UD') + J_UD*j22e*geny + avg(J_C*j23e*genz, 'C2UD')
+      cartz = avg(J_LR*j31e*genx, 'LR2C') + avg(J_UD*j32e*geny, 'UD2C') + J_C*j33e*genz
+    elif fieldtype == 'B':
+      cartx = J_UD*j11b*genx + avg(avg(J_LR*j12b*geny, 'LR2C'), 'C2UD') + avg(J_N*j13b*genz, 'N2UD')
+      carty = avg(avg(J_UD*j21b*genx, 'UD2C'), 'C2LR') + J_LR*j22b*geny + avg(J_N*j23b*genz, 'N2LR')
+      cartz = avg(J_UD*j31b*genx, 'UD2N') + avg(J_LR*j32b*geny, 'LR2N') + J_N*j33b*genz
+    
+    return cartx, carty, cartz
 
 # main cycle
 if relativistic:
@@ -506,11 +695,11 @@ print('energyBx=',histEnergyBx[0],'energyBy=',histEnergyBy[0],'energyBz=',histEn
 for it in range(1,nt+1):
     plt.clf()
     guess = phys_to_krylov(Ex,Ey,Ez,u,v,w) 
-#     guess = zeros(3*nx*ny+3*npart,np.float64)
+    #guess = zeros(3*nx*ny+3*npart,np.float64)
 
     # Uncomment the following to use python's NK methods
-#    sol = newton_krylov(residual, guess, method='lgmres', verbose=1, f_tol=1e-14)#, f_rtol=1e-7)
-#    print('Residual: %g' % abs(residual(sol)).max())
+    #sol = newton_krylov(residual, guess, method='lgmres', verbose=1, f_tol=1e-14)#, f_rtol=1e-7)
+    #print('Residual: %g' % abs(residual(sol)).max())
     
     # The following is a Picard iteration
     err = 1.
@@ -527,6 +716,7 @@ for it in range(1,nt+1):
 
     sol = xkrylov
     Exnew, Eynew, Eznew, unew, vnew, wnew = krylov_to_phys(sol)
+
     if relativistic:
       gnew = np.sqrt(1.+unew**2+vnew**2+wnew**2)
       gold = np.sqrt(1.+u**2+v**2+w**2)
@@ -547,10 +737,17 @@ for it in range(1,nt+1):
     Exbar = (Exnew+Ex)/2.
     Eybar = (Eynew+Ey)/2.
     Ezbar = (Eznew+Ez)/2.
+
     curlE_x, curlE_y, curlE_z = curl(Exbar,Eybar,Ezbar,'E')
+
     Bx = Bx - dt*curlE_x
     By = By - dt*curlE_y
     Bz = Bz - dt*curlE_z
+    
+    rho = particle_to_grid(x, y, q)
+    divE[it] = np.sum(div(Exnew, Eynew, Eznew, 'E')) - np.sum(rho)
+    divB[it] = np.sum(np.abs(div(Bx, By, Bz, 'B')))
+
     Ex = Exnew
     Ey = Eynew
     Ez = Eznew
@@ -568,7 +765,9 @@ for it in range(1,nt+1):
     energyBx=np.sum(Bx[:,0:nyn-1]**2)/2.*dx*dy
     energyBy=np.sum(By[0:nxn-1,:]**2)/2.*dx*dy
     energyBz=np.sum(Bz[0:nxn-1,0:nyn-1]**2)/2.*dx*dy
+
     energyTot = energyP1+energyP2+energyEx+energyEy+energyEz+energyBx+energyBy+energyBz
+
     histEnergyP1.append(energyP1)
     histEnergyP2.append(energyP2)
     histEnergyEx.append(energyEx)
@@ -578,30 +777,73 @@ for it in range(1,nt+1):
     histEnergyBy.append(energyBy)
     histEnergyBz.append(energyBz)
     histEnergyTot.append(energyTot)
+
     print('cycle',it,'energy =',histEnergyTot[it])
     print('energyP1 =',histEnergyP1[it],'energyP2=',histEnergyP2[it])
     print('energyEx=',histEnergyEx[it],'energyEy=',histEnergyEy[it],'energyEz=',histEnergyEz[it])
     print('energyBx=',histEnergyBx[it],'energyBy=',histEnergyBy[it],'energyBz=',histEnergyBz[it])
-    plt.subplot(2, 3, 1)
-    plt.pcolor(xLR, yLR, Ex)
-    plt.colorbar()
-    plt.subplot(2, 3, 2)
-    plt.pcolor(xUD, yUD, Ey)
-    plt.colorbar()
-    plt.subplot(2, 3, 3)
-    plt.pcolor(xc, yc, Ez)
-    plt.colorbar()
-    plt.subplot(2, 3, 4)
-    plt.plot(x[0:npart1],y[0:npart1],'r.')
-    plt.plot(x[npart1:npart],y[npart1:npart],'b.')
-    plt.xlim((0,Lx))
-    plt.ylim((0,Ly))
-#    plt.subplot(2,2,3)
-#    plt.plot(histEnergy)
-    plt.subplot(2, 3, 5)
-    plt.plot((histEnergyTot-histEnergyTot[0])/histEnergyTot[0])
-    print('relative energy change=',(histEnergyTot[it]-histEnergyTot[0])/histEnergyTot[0])
-#    plt.show()
-    plt.pause(0.000000000000001)
     
-# visualize
+    if plot_each_step == True:
+        plt.figure(figsize=(12, 9))
+
+        plt.subplot(2, 3, 1)
+        plt.pcolor(xLR, yLR, Ex)
+        plt.title('E_x map')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.colorbar()
+
+        plt.subplot(2, 3, 2)
+        plt.pcolor(xUD, yUD, Ey)
+        plt.title('E_y map')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.colorbar()
+
+        plt.subplot(2, 3, 3)
+        plt.pcolor(xc, yc, rho) #Ez
+        plt.title('rho map')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.colorbar()
+
+        plt.subplot(2, 3, 4)
+        plt.plot(x[0:npart1],y[0:npart1],'b.')
+        plt.plot(x[npart1:npart],y[npart1:npart],'r.')
+        plt.xlim((0,Lx))
+        plt.ylim((0,Ly))
+        plt.title('Particles')
+        plt.xlabel('x')
+        plt.ylabel('y')
+
+        plt.subplot(2, 3, 5)
+        plt.plot((histEnergyTot-histEnergyTot[0])/histEnergyTot[0])
+        plt.title('Total Energy')
+        plt.xlabel('t')
+        plt.ylabel('E')
+
+        plt.subplot(2, 3, 6)
+        plt.plot(divE, label = 'div(E)-rho')
+        plt.plot(divB, label = 'div(B)')
+        plt.title('Divergence free')
+        plt.xlabel('t')
+        plt.ylabel('div')
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),
+                   shadow=True, ncol=2)
+
+        PATH = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/fig_iPiC/'
+        filename = PATH + 'fig' + str(it) + '.png' 
+
+        if it % 10 == 0:
+            plt.savefig(filename)
+
+    print('relative energy change=',(histEnergyTot[it]-histEnergyTot[0])/histEnergyTot[0])
+    #plt.show()
+    plt.pause(0.0001)
+
+    if plot_data == True:
+        f = open("iPiC_2D3V_cov_yee.dat", "a")
+        print(it, np.sum(Ex), np.sum(Ey), np.sum(Ez), np.sum(Bx), np.sum(By), np.sum(Bz),\
+                  energyEx, energyEy, energyEz, energyBx, energyBy, energyBz, energyTot, energyP1, energyP2,\
+                  divE[it], divB[it], file=f)
+        f.close()
