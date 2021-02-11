@@ -25,7 +25,7 @@ nxn, nyn = nxc+1, nyc+1
 Lx, Ly = 10.,10.
 dx, dy = Lx/nxc, Ly/nyc
 dt = 0.05
-nt = 71
+nt = 45
 
 # Species 1
 # Constaint: npar1 must be a squered number and mub preserve an integer nppc
@@ -115,7 +115,7 @@ xn, yn = mgrid[0.:Lx:(nxn*1j), 0.:Ly:(nyn*1j)]
 
 divE = zeros(nt, np.float64)
 divB = zeros(nt, np.float64)
-rho = zeros(np.shape(xc), np.float64)
+rho = zeros(np.shape(xn), np.float64)
 
 # INIT FIELDS
 # defined on grid LR:        Ex, Jx, By
