@@ -771,23 +771,21 @@ print('energyEx=',histEnergyEx[0],'energyEy=',histEnergyEy[0],'energyEz=',histEn
 print('energyBx=',histEnergyBx[0],'energyBy=',histEnergyBy[0],'energyBz=',histEnergyBz[0])
 print('Momentumx=',histMomentumx[0],'Momentumy=',histMomentumy[0],'Momentumz=',histMomentumz[0])
 
-temp = 0
-
 if plot_dir == True:
     myplot_particle_map(x, y)
-    filename1 = PATH1 + 'part_' + '%04d'%temp + '.png'
+    filename1 = PATH1 + 'part_' + '%04d' + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
     myplot_phase_space(x, u, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
-    filename1 = PATH1 + 'phase_' + '%04d'%temp + '.png'
+    filename1 = PATH1 + 'phase_' + '%04d' + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
     myplot_map(xLR, yLR, Ex, title='E_x', xlabel='x', ylabel='y')
-    filename1 = PATH1 + 'Ex_' + '%04d'%temp + '.png'
+    filename1 = PATH1 + 'Ex_' + '%04d' + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
     myplot_map(xn, yn, rho, title='rho', xlabel='x', ylabel='y')
-    filename1 = PATH1 + 'rho_' + '%04d'%temp + '.png'
+    filename1 = PATH1 + 'rho_' + '%04d' + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
 for it in range(1,nt+1):
