@@ -19,13 +19,13 @@ plot_dir           = True
 plot_each_step     = False
 plot_data          = False
 # physics flags
-stable_plasma      = False
-couter_stream_inst = True
+stable_plasma      = True
+couter_stream_inst = False
 landau_damping     = False
 relativistic       = False
 
 # number of image's dpi
-ndpi = 50
+ndpi = 100
 # how often to plot
 every = 25
 
@@ -46,7 +46,7 @@ V0 = 3. # stream velocity magnitude
 npart1 = nx * ny * nppc
 WP1 = 1.  # Plasma frequency
 QM1 = - 1.  # Charge/mass ratio
-V0x1 = -V0  # Stream velocity
+V0x1 = V0  # Stream velocity
 V0y1 = V0  # Stream velocity
 V0z1 = V0  # Stream velocity
 VT1 = 0.1*V0  # thermal velocity
@@ -771,21 +771,23 @@ print('energyEx=',histEnergyEx[0],'energyEy=',histEnergyEy[0],'energyEz=',histEn
 print('energyBx=',histEnergyBx[0],'energyBy=',histEnergyBy[0],'energyBz=',histEnergyBz[0])
 print('Momentumx=',histMomentumx[0],'Momentumy=',histMomentumy[0],'Momentumz=',histMomentumz[0])
 
+temp=0
+
 if plot_dir == True:
     myplot_particle_map(x, y)
-    filename1 = PATH1 + 'part_' + '%04d' + '.png'
+    filename1 = PATH1 + 'part_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
     myplot_phase_space(x, u, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
-    filename1 = PATH1 + 'phase_' + '%04d' + '.png'
+    filename1 = PATH1 + 'phase_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
     myplot_map(xLR, yLR, Ex, title='E_x', xlabel='x', ylabel='y')
-    filename1 = PATH1 + 'Ex_' + '%04d' + '.png'
+    filename1 = PATH1 + 'Ex_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
     myplot_map(xn, yn, rho, title='rho', xlabel='x', ylabel='y')
-    filename1 = PATH1 + 'rho_' + '%04d' + '.png'
+    filename1 = PATH1 + 'rho_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
 for it in range(1,nt+1):
@@ -843,7 +845,7 @@ for it in range(1,nt+1):
     Bz = Bz - dt*curlE_z
     
     rho = particle_to_grid_rho(x, y, q)
-    divE[it] = np.sum(np.abs(div(Exnew, Eynew, Eznew, 'E'))) - np.sum(np.abs(rho))
+    divE[it] = np.sum(np.abs(div(Exnew, Eynew, Eznew, 'E'))) - np.sum(rho)
     divB[it] = np.sum(np.abs(div(Bx, By, Bz, 'B')))
 
     Ex = Exnew
