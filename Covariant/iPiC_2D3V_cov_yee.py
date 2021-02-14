@@ -15,19 +15,20 @@ import sys
 PATH1 = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/figures/'
 
 # plot flags
+log_file           = True
 plot_dir           = True
 plot_each_step     = False
 plot_data          = False
 # physics flags
-stable_plasma      = True
-couter_stream_inst = False
+stable_plasma      = False
+couter_stream_inst = True
 landau_damping     = False
 relativistic       = False
 
 # number of image's dpi
 ndpi = 100
 # how often to plot
-every = 25
+every = 20
 
 # parameters
 nx, ny = 20, 20
@@ -56,7 +57,7 @@ npart2 = npart1
 WP2 = 1.  # Plasma frequency 
 QM2 = 1.  # Charge/mass ratio
 V0x2 = V0  # Stream velocity
-V0y2 = V0  # Stream velocity
+V0y2 = - V0  # Stream velocity
 V0z2 = V0  # Stream velocity
 VT2 = 0.1*V0  # thermal velocity
 
@@ -86,40 +87,44 @@ u = zeros(npart, np.float64)
 if stable_plasma == True: 
     u[0:npart1] = VT1*np.random.randn(npart1)
     u[npart1:npart] = VT2*np.random.randn(npart2)
-if couter_stream_inst == True:
-    u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
-    u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
-    u[0:npart1:2] = - u[0:npart1:2]
-    u[npart1:npart:2] = - u[npart1:npart:2]
+#if couter_stream_inst == True:
+#    u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
+#    u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
+#    u[0:npart1:2] = - u[0:npart1:2]
+#    u[npart1:npart:2] = - u[npart1:npart:2]
 if landau_damping == True:
     u[0:npart1] = V0x1+VT1*np.sin(npart1)
     u[npart1:npart] = V0x2+VT2*np.sin(npart2)
 
 v = zeros(npart, np.float64)
-if stable_plasma == True:
-    v[0:npart1] = VT1*np.random.randn(npart1)
-    v[npart1:npart] = VT2*np.random.randn(npart2)
+#v[0:npart1] = VT1*np.random.randn(npart1)
+#v[npart1:npart] = VT2*np.random.randn(npart2)
+#if stable_plasma == True:
+#    v[0:npart1] = VT1*np.random.randn(npart1)
+#    v[npart1:npart] = VT2*np.random.randn(npart2)
 if couter_stream_inst == True:
     v[0:npart1] = V0y1+VT1*np.random.randn(npart1)
     v[npart1:npart] = V0y2+VT2*np.random.randn(npart2)
     v[0:npart1:2] = - v[0:npart1:2]
     v[npart1:npart:2] = - v[npart1:npart:2]
-if landau_damping == True:
-    v[0:npart1] = V0y1+VT1*np.sin(x[0:npart1]/Lx)
-    v[npart1:npart] = V0y2+VT2*np.sin(x[npart1:npart]/Lx)
+#if landau_damping == True:
+#    v[0:npart1] = V0y1+VT1*np.sin(x[0:npart1]/Lx)
+#    v[npart1:npart] = V0y2+VT2*np.sin(x[npart1:npart]/Lx)
 
 w = zeros(npart, np.float64)
-if stable_plasma == True:
-    w[0:npart1] = VT1*np.random.randn(npart1)
-    w[npart1:npart] = VT2*np.random.randn(npart2)
-if couter_stream_inst == True:
-    w[0:npart1] = V0z1+VT1*np.random.randn(npart1)
-    w[npart1:npart] = V0z2+VT2*np.random.randn(npart2)
-    w[0:npart1:2] = - w[0:npart1:2]
-    w[npart1:npart:2] = - w[npart1:npart:2]
-if landau_damping == True:
-    w[0:npart1] = V0x1+VT1*np.sin(npart1)
-    w[npart1:npart] = V0x2+VT2*np.sin(npart2)
+w[0:npart1] = VT1*np.random.randn(npart1)
+w[npart1:npart] = VT2*np.random.randn(npart2)
+#if stable_plasma == True:
+#    w[0:npart1] = VT1*np.random.randn(npart1)
+#    w[npart1:npart] = VT2*np.random.randn(npart2)
+#if couter_stream_inst == True:
+#    w[0:npart1] = V0z1+VT1*np.random.randn(npart1)
+#    w[npart1:npart] = V0z2+VT2*np.random.randn(npart2)
+#    w[0:npart1:2] = - w[0:npart1:2]
+#    w[npart1:npart:2] = - w[npart1:npart:2]
+#if landau_damping == True:
+#    w[0:npart1] = V0x1+VT1*np.sin(npart1)
+#    w[npart1:npart] = V0x2+VT2*np.sin(npart2)
 
 # when 2 species same charge -> ions bkg
 #q = ones(npart, np.float64)
@@ -127,11 +132,10 @@ if landau_damping == True:
 q = zeros(npart, np.float64) 
 q[0:npart1] = np.ones(npart1) * WP1**2 / (QM1*npart1/Lx/Ly)
 q[npart1:npart] = np.ones(npart2) * WP2**2 / (QM2*npart2/Lx/Ly)
-
-if couter_stream_inst == True:
-    # Two stream inst.: to guarantee both of species have bimodal distrib.
-    q[0:npart1:2] = - q[0:npart1:2]
-    q[npart1+1:npart:2] = - q[npart1+1:npart:2]
+#if couter_stream_inst == True:
+#    # Two stream inst.: to guarantee both of species have bimodal distrib.
+#    q[0:npart1:2] = - q[0:npart1:2]
+#    q[npart1+1:npart:2] = - q[npart1+1:npart:2]
 
 if relativistic:
     g = 1./np.sqrt(1.-(u**2+v**2+w**2))
@@ -257,6 +261,34 @@ j31b = np.zeros(np.shape(xUD), np.float64)
 j32b = np.zeros(np.shape(xLR), np.float64)
 j33b = np.ones(np.shape(xn), np.float64)
 
+if log_file == True:
+    f = open(PATH1 + 'log_file.txt', 'w')
+    print('* PHYSICS:', file=f)
+    print('stable plasma: ', stable_plasma, file=f)
+    print('2 stream instability: ', couter_stream_inst, file=f)
+    print('landau damping: ', landau_damping, file=f)
+    print('relativistic: ', relativistic, file=f)
+    print('* PARAMETER:', file=f)
+    print('number nodes (x-axes): ', nx, file=f)
+    print('number nodes (y-axes): ', ny, file=f)
+    print('length of the domain (x-axes): ', Lx, file=f)
+    print('length of the domain (y-axes): ', Ly, file=f)
+    print('number of time steps: ', nt, file=f)
+    print('number of part. per cell: ', nppc, file=f)
+    print('* SPECIES 1:', file=f)
+    print('number of particles : ', npart1, file=f)
+    print('plasma frequency : ', WP1, file=f)
+    print('charge to mass : ', QM1, file=f)
+    print('velocity field: ', '(', V0x1, ',', V0y1, ',', V0z1, ')', file=f)
+    print('thermal velocity: ', VT1, file=f)
+    print('* SPECIES 2:', file=f)
+    print('number of particles : ', npart2, file=f)
+    print('plasma frequency : ', WP2, file=f)
+    print('charge to mass : ', QM2, file=f)
+    print('velocity field: ', '(', V0x2, ',', V0y2, ',', V0z2, ')', file=f)
+    print('thermal velocity: ', VT2, file=f)
+    f.close()
+
 def myplot_map(xgrid, ygrid, field, title = 'a', xlabel= 'b', ylabel= 'c'):
     '''
     To plot the Map of a vector fied over a grid.
@@ -290,10 +322,12 @@ def myplot_particle_map(posx, posy):
 
 def myplot_phase_space(pos, vel, limx=(0, 0), limy=(0, 0), xlabel='b', ylabel='c'):
     plt.figure()
-    plt.plot(pos[0:npart1:2], vel[0:npart1:2], 'b.')
-    plt.plot(pos[1:npart1:2], vel[1:npart1:2], 'r.')
-    plt.plot(pos[npart1:npart:2], vel[npart1:npart:2], 'b.')
-    plt.plot(pos[npart1+1:npart:2], vel[npart1+1:npart:2], 'r.')
+    plt.plot(pos[0:npart1], vel[0:npart1], 'b.')
+    plt.plot(pos[npart1:npart], vel[npart1:npart], 'r.')
+    #plt.plot(pos[0:npart1:2], vel[0:npart1:2], 'b.')
+    #plt.plot(pos[1:npart1:2], vel[1:npart1:2], 'r.')
+    #plt.plot(pos[npart1:npart:2], vel[npart1:npart:2], 'b.')
+    #plt.plot(pos[npart1+1:npart:2], vel[npart1+1:npart:2], 'r.')
     plt.xlim(limx)
     plt.ylim(limy)
     plt.title('Particles map')
@@ -778,7 +812,7 @@ if plot_dir == True:
     filename1 = PATH1 + 'part_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
-    myplot_phase_space(x, u, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
+    myplot_phase_space(x, v, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
     filename1 = PATH1 + 'phase_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
@@ -845,8 +879,8 @@ for it in range(1,nt+1):
     Bz = Bz - dt*curlE_z
     
     rho = particle_to_grid_rho(x, y, q)
-    divE[it] = np.sum(np.abs(div(Exnew, Eynew, Eznew, 'E'))) - np.sum(rho)
-    divB[it] = np.sum(np.abs(div(Bx, By, Bz, 'B')))
+    divE[it] = np.sum(div(Exnew, Eynew, Eznew, 'E')) - np.sum(rho)
+    divB[it] = np.sum(div(Bx, By, Bz, 'B'))
 
     Ex = Exnew
     Ey = Eynew
@@ -1013,7 +1047,7 @@ for it in range(1,nt+1):
             filename1 = PATH1 + 'part_' + '%04d' % it + '.png'
             plt.savefig(filename1, dpi=ndpi) 
 
-            myplot_phase_space(x, u, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
+            myplot_phase_space(x, v, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
             filename1 = PATH1 + 'phase_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
@@ -1031,4 +1065,3 @@ for it in range(1,nt+1):
                   energyEx, energyEy, energyEz, energyBx, energyBy, energyBz, energyTot, energyP1, energyP2,\
                   divE[it], divB[it], file=f)
         f.close()
-
