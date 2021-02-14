@@ -14,16 +14,18 @@ import sys
 
 PATH1 = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/figures/'
 
-# plot flags
-log_file           = True
-plot_dir           = True
-plot_each_step     = False
-plot_data          = False
 # physics flags
-stable_plasma      = False
-couter_stream_inst = True
-landau_damping     = False
-relativistic       = False
+stable_plasma = True
+electron_and_ion = True
+couter_stream_inst = False
+couter_stream_inst_charge = False
+landau_damping = False
+relativistic = False
+# plot flags
+log_file = True
+plot_dir = True
+plot_each_step = False
+plot_data = False
 
 # number of image's dpi
 ndpi = 100
@@ -37,13 +39,13 @@ nxn, nyn = nxc+1, nyc+1
 Lx, Ly = 10., 10.
 dx, dy = Lx/nxc, Ly/nyc
 dt = 0.05
-nt = 101
+nt = 81
 
-# Species 1
 # Constaint: npar1 must be a squered number bacause we spread the particles over a squared grid
 nppc = 4 # per species
-V0 = 3. # stream velocity magnitude 
+V0 = 1. # stream velocity magnitude 
 
+# Species 1
 npart1 = nx * ny * nppc
 WP1 = 1.  # Plasma frequency
 QM1 = - 1.  # Charge/mass ratio
@@ -55,9 +57,9 @@ VT1 = 0.1*V0  # thermal velocity
 # Species 2
 npart2 = npart1
 WP2 = 1.  # Plasma frequency 
-QM2 = 1.  # Charge/mass ratio
+QM2 = -1.  # Charge/mass ratio
 V0x2 = V0  # Stream velocity
-V0y2 = - V0  # Stream velocity
+V0y2 = V0  # Stream velocity
 V0z2 = V0  # Stream velocity
 VT2 = 0.1*V0  # thermal velocity
 
@@ -87,26 +89,26 @@ u = zeros(npart, np.float64)
 if stable_plasma == True: 
     u[0:npart1] = VT1*np.random.randn(npart1)
     u[npart1:npart] = VT2*np.random.randn(npart2)
-#if couter_stream_inst == True:
-#    u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
-#    u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
-#    u[0:npart1:2] = - u[0:npart1:2]
-#    u[npart1:npart:2] = - u[npart1:npart:2]
+if couter_stream_inst == True:
+    u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
+    u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
+    u[0:npart1:2] = - u[0:npart1:2]
+    u[npart1:npart:2] = - u[npart1:npart:2]
 if landau_damping == True:
     u[0:npart1] = V0x1+VT1*np.sin(npart1)
     u[npart1:npart] = V0x2+VT2*np.sin(npart2)
 
 v = zeros(npart, np.float64)
-#v[0:npart1] = VT1*np.random.randn(npart1)
-#v[npart1:npart] = VT2*np.random.randn(npart2)
+v[0:npart1] = VT1*np.random.randn(npart1)
+v[npart1:npart] = VT2*np.random.randn(npart2)
 #if stable_plasma == True:
 #    v[0:npart1] = VT1*np.random.randn(npart1)
 #    v[npart1:npart] = VT2*np.random.randn(npart2)
-if couter_stream_inst == True:
-    v[0:npart1] = V0y1+VT1*np.random.randn(npart1)
-    v[npart1:npart] = V0y2+VT2*np.random.randn(npart2)
-    v[0:npart1:2] = - v[0:npart1:2]
-    v[npart1:npart:2] = - v[npart1:npart:2]
+#if couter_stream_inst == True:
+#    v[0:npart1] = V0y1+VT1*np.random.randn(npart1)
+#    v[npart1:npart] = V0y2+VT2*np.random.randn(npart2)
+#    v[0:npart1:2] = - v[0:npart1:2]
+#    v[npart1:npart:2] = - v[npart1:npart:2]
 #if landau_damping == True:
 #    v[0:npart1] = V0y1+VT1*np.sin(x[0:npart1]/Lx)
 #    v[npart1:npart] = V0y2+VT2*np.sin(x[npart1:npart]/Lx)
@@ -132,10 +134,10 @@ w[npart1:npart] = VT2*np.random.randn(npart2)
 q = zeros(npart, np.float64) 
 q[0:npart1] = np.ones(npart1) * WP1**2 / (QM1*npart1/Lx/Ly)
 q[npart1:npart] = np.ones(npart2) * WP2**2 / (QM2*npart2/Lx/Ly)
-#if couter_stream_inst == True:
-#    # Two stream inst.: to guarantee both of species have bimodal distrib.
-#    q[0:npart1:2] = - q[0:npart1:2]
-#    q[npart1+1:npart:2] = - q[npart1+1:npart:2]
+if couter_stream_inst_charge == True:
+    # Two stream inst.: to guarantee both of species have bimodal distrib.
+    q[0:npart1:2] = - q[0:npart1:2]
+    q[npart1+1:npart:2] = - q[npart1+1:npart:2]
 
 if relativistic:
     g = 1./np.sqrt(1.-(u**2+v**2+w**2))
@@ -265,7 +267,9 @@ if log_file == True:
     f = open(PATH1 + 'log_file.txt', 'w')
     print('* PHYSICS:', file=f)
     print('stable plasma: ', stable_plasma, file=f)
-    print('2 stream instability: ', couter_stream_inst, file=f)
+    print('electrons & ions: ', electron_and_ion, file=f)
+    print('counter stream inst.: ', couter_stream_inst, file=f)
+    print('counter stream inst. charge: ', couter_stream_inst_charge, file=f)
     print('landau damping: ', landau_damping, file=f)
     print('relativistic: ', relativistic, file=f)
     print('* PARAMETER:', file=f)
@@ -635,13 +639,14 @@ def particle_to_grid_rho(x, y, q):
     '''
     global dx, dy, nx, ny, npart
 
-    # 2 species opposit charge -> no ions bkg
-    r = zeros((nx, ny), np.float64)  
-    # 2 species same charge -> positive ions bkg
-    #r = ones((nx, ny), np.float64)*nppc*2
+    if electron_and_ion == True:
+        # 2 species same charge -> positive ions bkg
+        r = ones((nx, ny), np.float64)*nppc*2
+    else:
+        # 2 species opposit charge -> no ions bkg
+        r = zeros((nx, ny), np.float64)  
 
     for i in range(npart):
-
       #  interpolate field Ex from grid to particle */
       xa = x[i]/dx
       ya = y[i]/dy
