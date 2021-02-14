@@ -16,7 +16,7 @@ PATH1 = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/figures/'
 
 # physics flags
 stable_plasma = True
-electron_and_ion = True
+electron_and_ion = False
 couter_stream_inst = False
 couter_stream_inst_charge = False
 landau_damping = False
@@ -30,7 +30,7 @@ plot_data = False
 # number of image's dpi
 ndpi = 100
 # how often to plot
-every = 20
+every = 100
 
 # parameters
 nx, ny = 20, 20
@@ -38,12 +38,12 @@ nxc, nyc = nx, ny
 nxn, nyn = nxc+1, nyc+1
 Lx, Ly = 10., 10.
 dx, dy = Lx/nxc, Ly/nyc
-dt = 0.05
-nt = 81
+dt = 0.01
+nt = 401
 
 # Constaint: npar1 must be a squered number bacause we spread the particles over a squared grid
 nppc = 4 # per species
-V0 = 1. # stream velocity magnitude 
+V0 = 3. # stream velocity magnitude 
 
 # Species 1
 npart1 = nx * ny * nppc
@@ -57,7 +57,7 @@ VT1 = 0.1*V0  # thermal velocity
 # Species 2
 npart2 = npart1
 WP2 = 1.  # Plasma frequency 
-QM2 = -1.  # Charge/mass ratio
+QM2 = 1.  # Charge/mass ratio
 V0x2 = V0  # Stream velocity
 V0y2 = V0  # Stream velocity
 V0z2 = V0  # Stream velocity
@@ -159,6 +159,9 @@ xn, yn = mgrid[0.:Lx:(nxn*1j), 0.:Ly:(nyn*1j)]
 divE = zeros(nt, np.float64)
 divB = zeros(nt, np.float64)
 rho  = zeros(np.shape(xn), np.float64)
+energyP = zeros(nt, np.float64)
+energyE = zeros(nt, np.float64)
+energyB = zeros(nt, np.float64)
 
 # INIT FIELDS
 # defined on grid LR:        Ex, Jx, By
@@ -800,6 +803,10 @@ histEnergyTot=[histEnergyP1[0]+histEnergyP2[0]+
                histEnergyEx[0]+histEnergyEy[0]+histEnergyEz[0]+
                histEnergyBx[0]+histEnergyBy[0]+histEnergyBz[0]]
 
+energyP[0] = histEnergyP1[0] + histEnergyP2[0]
+energyE[0] = histEnergyEx[0] + histEnergyEy[0] + histEnergyEz[0]
+energyB[0] = histEnergyBx[0] + histEnergyBy[0] + histEnergyBz[0]
+
 histMomentumx = [np.sum(u[0:npart])]
 histMomentumy = [np.sum(v[0:npart])]
 histMomentumz = [np.sum(w[0:npart])]
@@ -818,7 +825,7 @@ if plot_dir == True:
     filename1 = PATH1 + 'part_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
-    myplot_phase_space(x, v, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
+    myplot_phase_space(x, u, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
     filename1 = PATH1 + 'phase_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
@@ -927,16 +934,15 @@ for it in range(1,nt+1):
     histMomentumz.append(momentumz)
     histMomentumTot.append(momentumTot)
 
-    energyP = histEnergyP1 + histEnergyP2
-    energyE = histEnergyEx + histEnergyEy + histEnergyEz
-    energyB = histEnergyBx + histEnergyBy + histEnergyBz
+    energyP[it] = histEnergyP1[it] + histEnergyP2[it]
+    energyE[it] = histEnergyEx[it] + histEnergyEy[it] + histEnergyEz[it]
+    energyB[it] = histEnergyBx[it] + histEnergyBy[it] + histEnergyBz[it]
 
     print('cycle',it,'energy =',histEnergyTot[it])
     print('energyP1 =',histEnergyP1[it],'energyP2=',histEnergyP2[it])
     print('energyEx=',histEnergyEx[it],'energyEy=',histEnergyEy[it],'energyEz=',histEnergyEz[it])
     print('energyBx=',histEnergyBx[it],'energyBy=',histEnergyBy[it],'energyBz=',histEnergyBz[it])
     print('relative energy change=',(histEnergyTot[it]-histEnergyTot[0])/histEnergyTot[0])
-
     print('momento totale= ', histMomentumTot[it])
 
     if plot_each_step == True:
@@ -1021,19 +1027,19 @@ for it in range(1,nt+1):
     if plot_dir == True:
         if it == nt-1:
             myplot_func((histEnergyTot-histEnergyTot[0])/histEnergyTot[0], title='Energy', xlabel='t', ylabel='E')
-            filename1 = PATH1 + '*tot_energy_' + '%04d'%it + '.png'
+            filename1 = PATH1 + '*energy_tot_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
             myplot_func(energyB,  title='Energy B', xlabel='t', ylabel='U_mag')
-            filename1 = PATH1 + '*mag_energy_' + '%04d'%it + '.png'
+            filename1 = PATH1 + '*energy_mag_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
             myplot_func(energyE,  title='Energy E', xlabel='t', ylabel='U_el')
-            filename1 = PATH1 + '*elec_energy_' + '%04d'%it + '.png'
+            filename1 = PATH1 + '*energy_elec_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
             myplot_func(energyP,  title='Energy Part.', xlabel='t', ylabel='U_part')
-            filename1 = PATH1 + '*partic_energy_' + '%04d'%it + '.png'
+            filename1 = PATH1 + '*energy_part_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
             myplot_func(histMomentumTot, title='Momentum', xlabel='t', ylabel='p')
@@ -1050,10 +1056,10 @@ for it in range(1,nt+1):
   
         if (it % every == 0) or (it == 1):
             myplot_particle_map(x, y)
-            filename1 = PATH1 + 'part_' + '%04d' % it + '.png'
+            filename1 = PATH1 + 'part_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi) 
 
-            myplot_phase_space(x, v, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
+            myplot_phase_space(x, u, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
             filename1 = PATH1 + 'phase_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
