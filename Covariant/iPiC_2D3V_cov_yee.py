@@ -67,6 +67,11 @@ npart = npart1+npart2
 QM = zeros(npart, np.float64)
 QM[0:npart1] = QM1
 QM[npart1:npart] = QM2
+# alternate charges when bimodal distrib.
+if couter_stream_inst_charge == True:
+    # Two stream inst.: to guarantee both of species have bimodal distrib.
+    QM[0:npart1:2] = - QM[0:npart1:2]
+    QM[npart1+1:npart:2] = - QM[npart1+1:npart:2]
 
 # INIT PARTICLES
 np.random.seed(1)
@@ -128,16 +133,12 @@ w[npart1:npart] = VT2*np.random.randn(npart2)
 #    w[0:npart1] = V0x1+VT1*np.sin(npart1)
 #    w[npart1:npart] = V0x2+VT2*np.sin(npart2)
 
-# when 2 species same charge -> ions bkg
-#q = ones(npart, np.float64)
-# when 2 opposit charge species -> no ions bkg
-q = zeros(npart, np.float64) 
+q = zeros(npart, np.float64)
 q[0:npart1] = np.ones(npart1) * WP1**2 / (QM1*npart1/Lx/Ly)
 q[npart1:npart] = np.ones(npart2) * WP2**2 / (QM2*npart2/Lx/Ly)
-if couter_stream_inst_charge == True:
-    # Two stream inst.: to guarantee both of species have bimodal distrib.
-    q[0:npart1:2] = - q[0:npart1:2]
-    q[npart1+1:npart:2] = - q[npart1+1:npart:2]
+if electron_and_ion == True:
+    # when 2 species same charge -> ions bkg
+    q = - ones(npart, np.float64)
 
 if relativistic:
     g = 1./np.sqrt(1.-(u**2+v**2+w**2))
@@ -641,7 +642,7 @@ def particle_to_grid_rho(x, y, q):
 
     if electron_and_ion == True:
         # 2 species same charge -> positive ions bkg
-        r = ones((nx, ny), np.float64)*nppc*2
+        r = ones((nx, ny), np.float64)*2.*nppc
     else:
         # 2 species opposit charge -> no ions bkg
         r = zeros((nx, ny), np.float64)  
