@@ -15,21 +15,21 @@ import sys
 PATH1 = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/figures/'
 
 # physics flags
-electron_and_ion = True     # background of ions when QM1=QM2=-1
-stable_plasma = False       # stable plasma set up
+electron_and_ion = False    # background of ions when QM1=QM2=-1
+stable_plasma = True       # stable plasma set up
 couter_stream_inst = False  # counterstream inst. set up
-landau_damping = True       # landau damping set up
+landau_damping = False       # landau damping set up
 relativistic = False        # relativisitc  set up
 # plot flags   
-log_file = True            # to save the log file in PATH1
-plot_dir = True          # to save the plots in PATH1
+log_file = False            # to save the log file in PATH1
+plot_dir = False          # to save the plots in PATH1
 plot_each_step = True       # to visualise each time step (memory consuming)
 plot_data = False           # to plot data in PATH1
 
 # number of dpi per img (stay low 100 for monitoring purpose!)
 ndpi = 100
 # how often to plot
-every = 20
+every = 10
 
 # parameters
 nx, ny = 20, 20
@@ -38,18 +38,18 @@ nxn, nyn = nxc+1, nyc+1
 Lx, Ly = 10., 10.
 dx, dy = Lx/nxc, Ly/nyc
 dt = 0.05
-nt = 201
+nt = 71
 
 # Constaint: nppc must be a squerable number (4, 16, 64) bacause particles are 
 #            spread over a squared grid
 nppc = 4     # per species
-V0 = 0.3      # stream velocity magnitude 
-alpha = 0.01  # fractional reduction for VT thermal velocity
+V0 = 1.      # stream velocity magnitude 
+alpha = 0.1  # fractional reduction for VT thermal velocity
 
 # Species 1
 npart1 = nx * ny * nppc
 WP1 = 1.   # Plasma frequency
-QM1 = - 1. # Charge/mass ratio
+QM1 = -1. # Charge/mass ratio
 V0x1 = V0  # Stream velocity
 V0y1 = V0  # Stream velocity
 V0z1 = V0 # Stream velocity
@@ -58,10 +58,10 @@ VT1 = alpha*V0  # thermal velocity
 # Species 2
 npart2 = npart1
 WP2 = 1.   # Plasma frequency
-QM2 = -1.  # Charge/mass ratio
-V0x2 = -V0  # Stream velocity
-V0y2 = -V0  # Stream velocity
-V0z2 = -V0  # Stream velocity
+QM2 = 1.  # Charge/mass ratio
+V0x2 = V0  # Stream velocity
+V0y2 = V0  # Stream velocity
+V0z2 = V0  # Stream velocity
 VT2 = alpha*V0  # thermal velocity
 
 npart = npart1 + npart2
@@ -637,43 +637,39 @@ def grid_to_particle(xk, yk, f, gridtype):
     return fp
 
 def particle_to_grid_rho(x, y, q):
-    ''' Interpolation particle to grid p - rho -> n
+    ''' Interpolation particle to grid - charge rho -> c
     '''
     global dx, dy, nx, ny, npart
 
     if electron_and_ion:
         # 2 species same charge -> positive ions bkg
         # each node have to compensate to 2.*nppc neg. charges
-        r = np.abs(q[0])*2.*nppc*ones((nx, ny), np.float64)
+        #r = np.abs(q[0])*2.*nppc*ones((nx, ny), np.float64)
+        r = np.abs(q[0])*2.*nppc*ones(np.shape(xc), np.float64)
     else:
         # 2 species opposit charge -> no ions bkg
-        r = zeros((nx, ny), np.float64)  
+        #r = zeros((nx, ny), np.float64)  
+        r = zeros(np.shape(xc), np.float64)
 
     for i in range(npart):
       #  interpolate field Ex from grid to particle */
-      xa = x[i]/dx
-      ya = y[i]/dy
-      i1 = int(xa)
-      i2 = i1 + 1
+        xa = (x[i]-dx/2.)/dx
+        ya = (y[i]-dy/2.)/dy
+        i1 = int(np.floor(xa))
+        i2 = i1 + 1
+        j1 = int(np.floor(ya))
+        j2 = j1 + 1  
+        wx2 = xa - np.float64(i1)
+        wx1 = 1.0 - wx2
+        wy2 = ya - np.float64(j1)
+        wy1 = 1.0 - wy2
+        i1, i2 = i1%nxc, i2%nxc
+        j1, j2 = j1%nyc, j2%nyc
 
-      if(i2 == nx):
-          i2 = 0
-
-      j1 = int(ya)
-      j2 = j1 + 1
-
-      if(j2 == ny):
-          j2 = 0
-
-      wx2 = xa - i1
-      wx1 = 1.0 - wx2
-      wy2 = ya - j1
-      wy1 = 1.0 - wy2
-
-      r[i1, j1] += wx1 * wy1 * q[i]
-      r[i2, j1] += wx2 * wy1 * q[i]
-      r[i1, j2] += wx1 * wy2 * q[i]
-      r[i2, j2] += wx2 * wy2 * q[i]
+        r[i1, j1] += wx1 * wy1 * q[i]
+        r[i2, j1] += wx2 * wy1 * q[i]
+        r[i1, j2] += wx1 * wy2 * q[i]
+        r[i2, j2] += wx2 * wy2 * q[i]
 
     return r
 
@@ -981,8 +977,8 @@ for it in range(1,nt+1):
         plt.colorbar()
 
         plt.subplot(2, 3, 3)
-        plt.plot(x[0:npart1], v[0:npart1], 'b.')
-        plt.plot(x[npart1:npart], v[npart1:npart], 'b.')
+        plt.plot(x[0:npart1], u[0:npart1], 'r.')
+        plt.plot(x[npart1:npart], u[npart1:npart], 'b.')
         plt.xlim((0, Lx))
         plt.ylim((-2*V0x1, 2*V0x1))
         plt.title('Phase space')
@@ -996,7 +992,7 @@ for it in range(1,nt+1):
         #plt.ylabel('p')
 
         plt.subplot(2, 3, 4)
-        plt.plot(x[0:npart1], y[0:npart1],'b.')
+        plt.plot(x[0:npart1], y[0:npart1],'r.')
         plt.plot(x[npart1:npart], y[npart1:npart],'b.')
         plt.xlim((0,Lx))
         plt.ylim((0,Ly))
@@ -1026,7 +1022,7 @@ for it in range(1,nt+1):
         filename1 = PATH1 + 'fig_' + '%04d'%it + '.png'
         if (it % every == 0) or (it == 1):
             plt.savefig(filename1, dpi=ndpi)
-        #plt.pause(0.00000001)
+        plt.pause(0.00000001)
 
     if plot_dir == True:
         if it == nt-1:
@@ -1063,7 +1059,7 @@ for it in range(1,nt+1):
             filename1 = PATH1 + 'part_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi) 
 
-            myplot_phase_space(x, v, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
+            myplot_phase_space(x, u, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
             filename1 = PATH1 + 'phase_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
