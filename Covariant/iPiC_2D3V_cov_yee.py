@@ -644,15 +644,12 @@ def particle_to_grid_rho(x, y, q):
     if electron_and_ion:
         # 2 species same charge -> positive ions bkg
         # each node have to compensate to 2.*nppc neg. charges
-        #r = np.abs(q[0])*2.*nppc*ones((nx, ny), np.float64)
-        r = np.abs(q[0])*2.*nppc*ones(np.shape(xc), np.float64)
+        rho = + np.abs(q[0])*2.*nppc*ones(np.shape(xc), np.float64)
     else:
         # 2 species opposit charge -> no ions bkg
-        #r = zeros((nx, ny), np.float64)  
-        r = zeros(np.shape(xc), np.float64)
+        rho = zeros(np.shape(xc), np.float64)
 
     for i in range(npart):
-      #  interpolate field Ex from grid to particle */
         xa = (x[i]-dx/2.)/dx
         ya = (y[i]-dy/2.)/dy
         i1 = int(np.floor(xa))
@@ -666,12 +663,12 @@ def particle_to_grid_rho(x, y, q):
         i1, i2 = i1%nxc, i2%nxc
         j1, j2 = j1%nyc, j2%nyc
 
-        r[i1, j1] += wx1 * wy1 * q[i]
-        r[i2, j1] += wx2 * wy1 * q[i]
-        r[i1, j2] += wx1 * wy2 * q[i]
-        r[i2, j2] += wx2 * wy2 * q[i]
+        rho[i1, j1] += wx1 * wy1 * q[i]
+        rho[i2, j1] += wx2 * wy1 * q[i]
+        rho[i1, j2] += wx1 * wy2 * q[i]
+        rho[i2, j2] += wx2 * wy2 * q[i]
 
-    return r
+    return rho
 
 def particle_to_grid_J(xk, yk, uk, vk, wk, qk): 
     ''' Interpolation particle to grid - current -> LR, UD, c
@@ -892,7 +889,7 @@ for it in range(1,nt+1):
     Bz = Bz - dt*curlE_z
     
     rho = particle_to_grid_rho(x, y, q)
-    divE[it] = np.sum(np.abs(div(Exnew, Eynew, Eznew, 'E')) - np.abs(rho))
+    divE[it] = np.sum(np.abs(rho))  # np.abs(div(Exnew, Eynew, Eznew, 'E')) -
     divB[it] = np.sum(div(Bx, By, Bz, 'B'))
 
     Ex = Exnew
@@ -977,8 +974,8 @@ for it in range(1,nt+1):
         plt.colorbar()
 
         plt.subplot(2, 3, 3)
-        plt.plot(x[0:npart1], u[0:npart1], 'r.')
-        plt.plot(x[npart1:npart], u[npart1:npart], 'b.')
+        plt.plot(x[0:npart1], u[0:npart1], 'b.')
+        plt.plot(x[npart1:npart], u[npart1:npart], 'r.')
         plt.xlim((0, Lx))
         plt.ylim((-2*V0x1, 2*V0x1))
         plt.title('Phase space')
@@ -992,8 +989,8 @@ for it in range(1,nt+1):
         #plt.ylabel('p')
 
         plt.subplot(2, 3, 4)
-        plt.plot(x[0:npart1], y[0:npart1],'r.')
-        plt.plot(x[npart1:npart], y[npart1:npart],'b.')
+        plt.plot(x[0:npart1], y[0:npart1],'b.')
+        plt.plot(x[npart1:npart], y[npart1:npart],'r.')
         plt.xlim((0,Lx))
         plt.ylim((0,Ly))
         plt.title('Particles map')
