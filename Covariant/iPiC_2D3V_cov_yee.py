@@ -1,7 +1,7 @@
 """
-Fully Implicit, Relativistic Particle-in-Cell - 2D3V Electromagnetic - 2 species
+Fully Implicit, Relativistic, Covariant Particle-in-Cell - 2D3V Electromagnetic - 2 species
 Authors: G. Lapenta, F. Bacchini, L. Pezzini
-Date: 20 Oct 2020
+Date: 23 Jan 2021
 Copyright 2020 KULeuven
 MIT License.
 """
@@ -15,22 +15,21 @@ import sys
 PATH1 = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/figures/'
 
 # physics flags
-stable_plasma = True
-electron_and_ion = False
-couter_stream_inst = False
-couter_stream_inst_charge = False
-landau_damping = False
-relativistic = False
-# plot flags
-log_file = True
-plot_dir = True
-plot_each_step = False
-plot_data = False
+electron_and_ion = True     # background of ions when QM1=QM2=-1
+stable_plasma = False       # stable plasma set up
+couter_stream_inst = False  # counterstream inst. set up
+landau_damping = True       # landau damping set up
+relativistic = False        # relativisitc  set up
+# plot flags   
+log_file = True            # to save the log file in PATH1
+plot_dir = True          # to save the plots in PATH1
+plot_each_step = True       # to visualise each time step (memory consuming)
+plot_data = False           # to plot data in PATH1
 
-# number of image's dpi
+# number of dpi per img (stay low 100 for monitoring purpose!)
 ndpi = 100
 # how often to plot
-every = 100
+every = 20
 
 # parameters
 nx, ny = 20, 20
@@ -38,40 +37,37 @@ nxc, nyc = nx, ny
 nxn, nyn = nxc+1, nyc+1
 Lx, Ly = 10., 10.
 dx, dy = Lx/nxc, Ly/nyc
-dt = 0.01
-nt = 401
+dt = 0.05
+nt = 201
 
-# Constaint: npar1 must be a squered number bacause we spread the particles over a squared grid
-nppc = 4 # per species
-V0 = 3. # stream velocity magnitude 
+# Constaint: nppc must be a squerable number (4, 16, 64) bacause particles are 
+#            spread over a squared grid
+nppc = 4     # per species
+V0 = 0.3      # stream velocity magnitude 
+alpha = 0.01  # fractional reduction for VT thermal velocity
 
 # Species 1
 npart1 = nx * ny * nppc
-WP1 = 1.  # Plasma frequency
-QM1 = - 1.  # Charge/mass ratio
+WP1 = 1.   # Plasma frequency
+QM1 = - 1. # Charge/mass ratio
 V0x1 = V0  # Stream velocity
 V0y1 = V0  # Stream velocity
-V0z1 = V0  # Stream velocity
-VT1 = 0.1*V0  # thermal velocity
+V0z1 = V0 # Stream velocity
+VT1 = alpha*V0  # thermal velocity
 
 # Species 2
 npart2 = npart1
-WP2 = 1.  # Plasma frequency 
-QM2 = 1.  # Charge/mass ratio
-V0x2 = V0  # Stream velocity
-V0y2 = V0  # Stream velocity
-V0z2 = V0  # Stream velocity
-VT2 = 0.1*V0  # thermal velocity
+WP2 = 1.   # Plasma frequency
+QM2 = -1.  # Charge/mass ratio
+V0x2 = -V0  # Stream velocity
+V0y2 = -V0  # Stream velocity
+V0z2 = -V0  # Stream velocity
+VT2 = alpha*V0  # thermal velocity
 
-npart = npart1+npart2
+npart = npart1 + npart2
 QM = zeros(npart, np.float64)
 QM[0:npart1] = QM1
 QM[npart1:npart] = QM2
-# alternate charges when bimodal distrib.
-if couter_stream_inst_charge == True:
-    # Two stream inst.: to guarantee both of species have bimodal distrib.
-    QM[0:npart1:2] = - QM[0:npart1:2]
-    QM[npart1+1:npart:2] = - QM[npart1+1:npart:2]
 
 # INIT PARTICLES
 np.random.seed(1)
@@ -91,21 +87,23 @@ y[0:npart1] = Ly*np.random.rand(npart1)
 y[npart1:npart] = y[0:npart1]
 
 u = zeros(npart, np.float64)
-if stable_plasma == True: 
-    u[0:npart1] = VT1*np.random.randn(npart1)
-    u[npart1:npart] = VT2*np.random.randn(npart2)
-if couter_stream_inst == True:
+if stable_plasma: 
     u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
     u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
-    u[0:npart1:2] = - u[0:npart1:2]
-    u[npart1:npart:2] = - u[npart1:npart:2]
-if landau_damping == True:
-    u[0:npart1] = V0x1+VT1*np.sin(npart1)
-    u[npart1:npart] = V0x2+VT2*np.sin(npart2)
+if couter_stream_inst:
+    u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
+    u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
+    # velocity in the odd position are negative 
+    u[1:npart:2] = - u[1:npart:2]
+    # to guarantee 50% of +u0 to e- and the other 50% to e+ and same fo -u0
+    np.random.shuffle(u)
+#if landau_damping == True:
+#    u[0:npart1] = V0x1+VT1*np.sin(npart1)
+#    u[npart1:npart] = V0x2+VT2*np.sin(npart2)
 
 v = zeros(npart, np.float64)
-v[0:npart1] = VT1*np.random.randn(npart1)
-v[npart1:npart] = VT2*np.random.randn(npart2)
+v[0:npart1] = V0y1+VT1*np.random.randn(npart1)
+v[npart1:npart] = V0y2+VT2*np.random.randn(npart2)
 #if stable_plasma == True:
 #    v[0:npart1] = VT1*np.random.randn(npart1)
 #    v[npart1:npart] = VT2*np.random.randn(npart2)
@@ -114,13 +112,13 @@ v[npart1:npart] = VT2*np.random.randn(npart2)
 #    v[npart1:npart] = V0y2+VT2*np.random.randn(npart2)
 #    v[0:npart1:2] = - v[0:npart1:2]
 #    v[npart1:npart:2] = - v[npart1:npart:2]
-#if landau_damping == True:
-#    v[0:npart1] = V0y1+VT1*np.sin(x[0:npart1]/Lx)
-#    v[npart1:npart] = V0y2+VT2*np.sin(x[npart1:npart]/Lx)
+if landau_damping:
+    v[0:npart1] = V0y1+VT1*np.sin(x[0:npart1]/Lx)
+    v[npart1:npart] = V0y2+VT2*np.sin(x[npart1:npart]/Lx)
 
 w = zeros(npart, np.float64)
-w[0:npart1] = VT1*np.random.randn(npart1)
-w[npart1:npart] = VT2*np.random.randn(npart2)
+w[0:npart1] = V0z1+VT1*np.random.randn(npart1)
+w[npart1:npart] = V0z2+VT2*np.random.randn(npart2)
 #if stable_plasma == True:
 #    w[0:npart1] = VT1*np.random.randn(npart1)
 #    w[npart1:npart] = VT2*np.random.randn(npart2)
@@ -134,11 +132,10 @@ w[npart1:npart] = VT2*np.random.randn(npart2)
 #    w[npart1:npart] = V0x2+VT2*np.sin(npart2)
 
 q = zeros(npart, np.float64)
-q[0:npart1] = np.ones(npart1) * WP1**2 / (QM1*npart1/Lx/Ly)
-q[npart1:npart] = np.ones(npart2) * WP2**2 / (QM2*npart2/Lx/Ly)
-if electron_and_ion == True:
-    # when 2 species same charge -> ions bkg
-    q = - ones(npart, np.float64)
+#q[0:npart1] =  np.ones(npart1)
+#q[npart1:npart] = - np.ones(npart2) 
+q[0:npart1] = np.ones(npart1)*WP1**2/(QM1*npart1/Lx/Ly) 
+q[npart1:npart] = np.ones(npart2)*WP2**2/(QM2*npart2/Lx/Ly)
 
 if relativistic:
     g = 1./np.sqrt(1.-(u**2+v**2+w**2))
@@ -156,13 +153,6 @@ xUD, yUD = mgrid[dx/2.:Lx-dx/2.:(nxc*1j), 0.:Ly:(nyn*1j)]
 # grid of corners n
 xn, yn = mgrid[0.:Lx:(nxn*1j), 0.:Ly:(nyn*1j)]
 
-divE = zeros(nt, np.float64)
-divB = zeros(nt, np.float64)
-rho  = zeros(np.shape(xn), np.float64)
-energyP = zeros(nt, np.float64)
-energyE = zeros(nt, np.float64)
-energyB = zeros(nt, np.float64)
-
 # INIT FIELDS
 # defined on grid LR:        Ex, Jx, By
 # defined on grid UD:        Ey, Jy, Bx
@@ -175,12 +165,13 @@ Ez = zeros(np.shape(xc),np.float64)
 Bx = zeros(np.shape(xUD),np.float64)
 By = zeros(np.shape(xLR),np.float64)
 Bz = zeros(np.shape(xn),np.float64)
+rho = zeros(np.shape(xc), np.float64)
 
 # INIT METRIC TENSOR
 # defined on grid LR:        (g11e, g21e, g31e)E1
-#                            (g12b, g22b, g32b)B1
+#                            (g11b, g21b, g31b)B1
 # defined on grid UD:        (g12e, g22e, g32e)E2
-#                            (g11b, g21b, g31b)B2
+#                            (g12b, g22b, g32b)B2
 # defined on grid centres c: (g12e, g23e, g33e)E3
 # defined on grid corners n: (g12b, g23b, g33b)B3
 
@@ -212,12 +203,12 @@ J_C = np.ones(np.shape(xc), np.float64)
 J_N = np.ones(np.shape(xn), np.float64)
 
 # INIT JACOBIAN MATRIX
-# defined on grid LR:        (j12e, j23e, j33e)E1, J1
-#                            (j12b, j23b, j33b)B1
+# defined on grid LR:        (j11e, j21e, j31e)E1, J1
+#                            (j11b, j21b, j31b)B1
 # defined on grid UD:        (J12e, J22e, J32e)E2, J2
 #                            (J12b, J22b, J32b)B2
-# defined on grid centres c: (J12e, J22e, J32e)E3, J3
-#                            (J12b, J22b, J32b)B3
+# defined on grid centres c: (J13e, J23e, J33e)E3, J3
+#                            (J13b, J23b, J33b)B3
 
 J11e = np.ones(np.shape(xLR), np.float64)
 J12e = np.zeros(np.shape(xUD), np.float64)
@@ -267,13 +258,23 @@ j31b = np.zeros(np.shape(xUD), np.float64)
 j32b = np.zeros(np.shape(xLR), np.float64)
 j33b = np.ones(np.shape(xn), np.float64)
 
+# Divergence
+# defined on grid c: div(E)
+# defined on grid n: div(E)
+divE = zeros(nt, np.float64)
+divB = zeros(nt, np.float64)
+
+# Energy
+energyP = zeros(nt, np.float64) # particles
+energyE = zeros(nt, np.float64) # E field 
+energyB = zeros(nt, np.float64) # B field
+
 if log_file == True:
     f = open(PATH1 + 'log_file.txt', 'w')
     print('* PHYSICS:', file=f)
     print('stable plasma: ', stable_plasma, file=f)
     print('electrons & ions: ', electron_and_ion, file=f)
     print('counter stream inst.: ', couter_stream_inst, file=f)
-    print('counter stream inst. charge: ', couter_stream_inst_charge, file=f)
     print('landau damping: ', landau_damping, file=f)
     print('relativistic: ', relativistic, file=f)
     print('* PARAMETER:', file=f)
@@ -281,6 +282,7 @@ if log_file == True:
     print('number nodes (y-axes): ', ny, file=f)
     print('length of the domain (x-axes): ', Lx, file=f)
     print('length of the domain (y-axes): ', Ly, file=f)
+    print('time steps: ', dt, file=f)
     print('number of time steps: ', nt, file=f)
     print('number of part. per cell: ', nppc, file=f)
     print('* SPECIES 1:', file=f)
@@ -332,10 +334,6 @@ def myplot_phase_space(pos, vel, limx=(0, 0), limy=(0, 0), xlabel='b', ylabel='c
     plt.figure()
     plt.plot(pos[0:npart1], vel[0:npart1], 'b.')
     plt.plot(pos[npart1:npart], vel[npart1:npart], 'r.')
-    #plt.plot(pos[0:npart1:2], vel[0:npart1:2], 'b.')
-    #plt.plot(pos[1:npart1:2], vel[1:npart1:2], 'r.')
-    #plt.plot(pos[npart1:npart:2], vel[npart1:npart:2], 'b.')
-    #plt.plot(pos[npart1+1:npart:2], vel[npart1+1:npart:2], 'r.')
     plt.xlim(limx)
     plt.ylim(limy)
     plt.title('Particles map')
@@ -643,9 +641,10 @@ def particle_to_grid_rho(x, y, q):
     '''
     global dx, dy, nx, ny, npart
 
-    if electron_and_ion == True:
+    if electron_and_ion:
         # 2 species same charge -> positive ions bkg
-        r = ones((nx, ny), np.float64)*2.*nppc
+        # each node have to compensate to 2.*nppc neg. charges
+        r = np.abs(q[0])*2.*nppc*ones((nx, ny), np.float64)
     else:
         # 2 species opposit charge -> no ions bkg
         r = zeros((nx, ny), np.float64)  
@@ -812,12 +811,13 @@ histMomentumy = [np.sum(v[0:npart])]
 histMomentumz = [np.sum(w[0:npart])]
 histMomentumTot = [histMomentumx[0] + histMomentumy[0] + histMomentumz[0]]
 
-print('cycle 0, energy =',histEnergyTot[0])
-print('energyP1 =',histEnergyP1[0],'energyP2=',histEnergyP2[0])
+print('cycle 0, energy=',histEnergyTot[0])
+print('energyP1=',histEnergyP1[0],'energyP2=',histEnergyP2[0])
 print('energyEx=',histEnergyEx[0],'energyEy=',histEnergyEy[0],'energyEz=',histEnergyEz[0])
 print('energyBx=',histEnergyBx[0],'energyBy=',histEnergyBy[0],'energyBz=',histEnergyBz[0])
 print('Momentumx=',histMomentumx[0],'Momentumy=',histMomentumy[0],'Momentumz=',histMomentumz[0])
 
+rho = particle_to_grid_rho(x, y, q)
 temp=0
 
 if plot_dir == True:
@@ -825,16 +825,20 @@ if plot_dir == True:
     filename1 = PATH1 + 'part_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
-    myplot_phase_space(x, u, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
+    myplot_phase_space(x, v, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
     filename1 = PATH1 + 'phase_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
-    myplot_map(xLR, yLR, Ex, title='E_x', xlabel='x', ylabel='y')
-    filename1 = PATH1 + 'Ex_' + '%04d'%temp + '.png'
+    myplot_map(xn, yn, Bz, title='B_z', xlabel='x', ylabel='y')
+    filename1 = PATH1 + 'Bz_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
-    myplot_map(xn, yn, rho, title='rho', xlabel='x', ylabel='y')
+    myplot_map(xc, yc, rho, title='rho', xlabel='x', ylabel='y')
     filename1 = PATH1 + 'rho_' + '%04d'%temp + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_map(xc, yc, div(Ex, Ey, Ez, 'E') - rho, title='div(E)-rho map', xlabel='x', ylabel='y')
+    filename1 = PATH1 + 'div_rho_' + '%04d'%temp + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
 for it in range(1,nt+1):
@@ -892,7 +896,7 @@ for it in range(1,nt+1):
     Bz = Bz - dt*curlE_z
     
     rho = particle_to_grid_rho(x, y, q)
-    divE[it] = np.sum(div(Exnew, Eynew, Eznew, 'E')) - np.sum(rho)
+    divE[it] = np.sum(np.abs(div(Exnew, Eynew, Eznew, 'E')) - np.abs(rho))
     divB[it] = np.sum(div(Bx, By, Bz, 'B'))
 
     Ex = Exnew
@@ -939,7 +943,7 @@ for it in range(1,nt+1):
     energyB[it] = histEnergyBx[it] + histEnergyBy[it] + histEnergyBz[it]
 
     print('cycle',it,'energy =',histEnergyTot[it])
-    print('energyP1 =',histEnergyP1[it],'energyP2=',histEnergyP2[it])
+    print('energyP1=',histEnergyP1[it],'energyP2=',histEnergyP2[it])
     print('energyEx=',histEnergyEx[it],'energyEy=',histEnergyEy[it],'energyEz=',histEnergyEz[it])
     print('energyBx=',histEnergyBx[it],'energyBy=',histEnergyBy[it],'energyBz=',histEnergyBz[it])
     print('relative energy change=',(histEnergyTot[it]-histEnergyTot[0])/histEnergyTot[0])
@@ -949,8 +953,8 @@ for it in range(1,nt+1):
         plt.figure(figsize=(12, 9))
 
         plt.subplot(2, 3, 1)
-        plt.pcolor(xLR, yLR, Ex)
-        plt.title('E_x map')
+        plt.pcolor(xn, yn, Bz)
+        plt.title('B_z map')
         plt.xlabel('x')
         plt.ylabel('y')
         plt.colorbar()
@@ -977,8 +981,8 @@ for it in range(1,nt+1):
         plt.colorbar()
 
         plt.subplot(2, 3, 3)
-        plt.plot(x[0:npart1], u[0:npart1], 'b.')
-        plt.plot(x[npart1:npart], u[npart1:npart], 'r.')
+        plt.plot(x[0:npart1], v[0:npart1], 'b.')
+        plt.plot(x[npart1:npart], v[npart1:npart], 'b.')
         plt.xlim((0, Lx))
         plt.ylim((-2*V0x1, 2*V0x1))
         plt.title('Phase space')
@@ -993,7 +997,7 @@ for it in range(1,nt+1):
 
         plt.subplot(2, 3, 4)
         plt.plot(x[0:npart1], y[0:npart1],'b.')
-        plt.plot(x[npart1:npart], y[npart1:npart],'r.')
+        plt.plot(x[npart1:npart], y[npart1:npart],'b.')
         plt.xlim((0,Lx))
         plt.ylim((0,Ly))
         plt.title('Particles map')
@@ -1019,10 +1023,10 @@ for it in range(1,nt+1):
         plt.ylabel('div')
         plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), shadow=True, ncol=2)
 
-        filename1 = PATH1 + 'fig' + '%04d'%it + '.png'
+        filename1 = PATH1 + 'fig_' + '%04d'%it + '.png'
         if (it % every == 0) or (it == 1):
-            plt.savefig(filename1)
-        #plt.pause(0.0001)
+            plt.savefig(filename1, dpi=ndpi)
+        #plt.pause(0.00000001)
 
     if plot_dir == True:
         if it == nt-1:
@@ -1059,16 +1063,20 @@ for it in range(1,nt+1):
             filename1 = PATH1 + 'part_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi) 
 
-            myplot_phase_space(x, u, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
+            myplot_phase_space(x, v, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
             filename1 = PATH1 + 'phase_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
-            myplot_map(xLR, yLR, Ex, title='E_x', xlabel='x', ylabel='y')
-            filename1 = PATH1 + 'Ex_' + '%04d'%it + '.png'
+            myplot_map(xn, yn, Bz, title='B_z', xlabel='x', ylabel='y')
+            filename1 = PATH1 + 'Bz_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
-            myplot_map(xn, yn, rho, title='rho', xlabel='x', ylabel='y')
+            myplot_map(xc, yc, rho, title='rho', xlabel='x', ylabel='y')
             filename1 = PATH1 + 'rho_' + '%04d'%it + '.png'
+            plt.savefig(filename1, dpi=ndpi)
+
+            myplot_map(xc, yc, div(Exnew, Eynew, Eznew, 'E') - rho, title='div(E)-rho map', xlabel='x', ylabel='y')
+            filename1 = PATH1 + 'div_rho_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
             
     if plot_data == True:
