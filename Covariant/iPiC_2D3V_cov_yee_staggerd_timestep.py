@@ -13,10 +13,16 @@ import matplotlib.pyplot as plt
 import time
 import sys
 
+
+#TODO: Fix cart to gen and gen to cart
+#TODO: Build geom needs to be fixed bc we currently use wrong map
+#TODO: Fix curl (dual basis and normalisation)
+
+
 PATH1 = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/figures/'
 
-# metric flag
-perturb = True              # perturbed metric tensor
+# metric fla
+perturb = True           # perturbed metric tensor
 # method flags
 NK_method = False
 Picard = True
@@ -24,7 +30,7 @@ Picard = True
 electron_and_ion = True     # background of ions when QM1=QM2=-1
 stable_plasma = True        # stable plasma set up
 couter_stream_inst = False  # counterstream inst. set up
-landau_damping = False      # landau damping set up
+landau_damping = False      # landau damping set u
 relativistic = False        # relativisitc  set up
 # plot flags   
 log_file = True             # to save the log file in PATH1
@@ -39,7 +45,7 @@ nxn, nyn = nxc+1, nyc+1
 Lx, Ly = 10., 10.
 dx, dy = Lx/nxc, Ly/nyc
 dt = 0.05
-nt = 200
+nt = 201
 
 ndpi = 100  # number of dpi per img (stay low 100 for monitoring purpose!)
 every = 20    # how often to plot
@@ -131,7 +137,7 @@ if relativistic:
     v = v*g
     w = w*g
 
-# INIT GRID: grid is defined in logic space
+# INIT GRID
 # grid of left-right faces LR
 xLR, yLR = mgrid[0.:Lx:(nxn*1j), dy/2.:Ly-dy/2.:(nyc*1j)]
 # grid of up-down faces UD
@@ -141,7 +147,7 @@ xc, yc = mgrid[dx/2.:Lx-dx/2.:(nxc*1j), dy/2.:Ly-dy/2.:(nyc*1j)]
 # grid of corners n
 xn, yn = mgrid[0.:Lx:(nxn*1j), 0.:Ly:(nyn*1j)]
 
-# INIT FIELDS:fields live in logic space
+# INIT FIELDS
 # defined on grid LR:        Ex, Jx, By
 # defined on grid UD:        Ey, Jy, Bx
 # defined on grid centres c: Ez, Jz, rho
@@ -171,12 +177,6 @@ rho = zeros(np.shape(xc), np.float64)
 rho_ion = zeros(np.shape(xc), np.float64)
 
 # INIT JACOBIAN MATRIX
-# change from the physical coordinate to the (xi, eta, zeta) to the logical ones (x, y, z)
-# through the map \xi^i = f(x^i):
-# xi   = x + eps * sin(2*pi*x/Lx) * sin(2*pi*eta/Lx)
-# eta  = y + eps * sin(2*pi*x/Lx) * sin(2*pi*eta/Lx)
-# zeta = z
-
 # defined on grid LR:        (j11e, j21e, j31e)E1, J1
 #                            (j11b, j21b, j31b)B1
 # defined on grid UD:        (J12e, J22e, J32e)E2, J2
@@ -379,15 +379,25 @@ g33_N = np.zeros(np.shape(xn), np.float64)
 
 # Divergence
 # defined on grid c:
-divE = zeros(nt+1, np.float64)
-divE_rho = zeros(nt+1, np.float64)
+divE = zeros(nt, np.float64)
+divE_rho = zeros(nt, np.float64)
 # defined on grid n: 
-divB = zeros(nt+1, np.float64)
+divB = zeros(nt, np.float64)
 
 # Energy
-energyP = zeros(nt+1, np.float64) # particles
-energyE = zeros(nt+1, np.float64) # E field 
-energyB = zeros(nt+1, np.float64) # B field
+energyP = zeros(nt, np.float64) # particles
+energyP1 = zeros(nt, np.float64) # particles1
+energyP2 = zeros(nt, np.float64) # particles2
+energyE = zeros(nt, np.float64) # Total E
+energyE1 = zeros(nt, np.float64) # E1 field
+energyE2 = zeros(nt, np.float64) # E2 field
+energyE3 = zeros(nt, np.float64) # E3 field
+energyB = zeros(nt, np.float64) # B field
+energyB1 = zeros(nt, np.float64) # B1 field
+energyB2 = zeros(nt, np.float64) # B2 field
+energyB3 = zeros(nt, np.float64) # B3 field
+energyTot = zeros(nt, np.float64) # B field
+momentumTot = zeros(nt, np.float64) # Total momentum
 
 if log_file == True:
     f = open(PATH1 + 'log_file.txt', 'w')
@@ -473,7 +483,7 @@ def myplot_phase_space(pos, vel, limx=(0, 0), limy=(0, 0), xlabel='b', ylabel='c
     plt.ylabel(ylabel)
 
 def define_geometry():
-    '''To construct the structure of geometry (for each grid type):
+    '''To construct the structure of the general geometry (for each grid type):
     - Get the Jacobian matrix and its determinant
     - Get the inverse Jacobian matrix isolate the components and calculate its determinant
     - Get the metric tensor components
@@ -614,55 +624,45 @@ def define_geometry():
             g23_N[i, j] = jacobian_N[0, 1] * jacobian_N[0, 2] + jacobian_N[1, 1] * jacobian_N[1, 2] + jacobian_N[2, 1] * jacobian_N[2, 2]
             g33_N[i, j] = jacobian_N[0, 2] * jacobian_N[0, 2] + jacobian_N[1, 2] * jacobian_N[1, 2] + jacobian_N[2, 2] * jacobian_N[2, 2]
 
-def physic_to_logic(x, y, z, fieldtype):
-    '''To convert fields from physical coordinate (x, y, z) to logigal coordinate (xi, eta, zeta)
+def cartesian_to_general(cartx, carty, cartz, fieldtype):
+    ''' To convert fields from Cartesian geom. to General geom.
     fieltype=='E' or 'J': input -> LR,UD,c, output -> LR,UD,c
     fieltype=='B':        input -> UD,LR,n, output -> UD,LR,n
     '''
-
     if (fieldtype == 'E') or (fieldtype == 'J'):
-      xi = J11_LR * x + J11_LR * avg(avg(y, 'UD2C'), 'C2LR')+ J11_LR * avg(z, 'C2LR')
-      eta = J22_UD * avg(avg(x, 'LR2C'), 'C2UD') + J22_UD * y + J22_UD * avg(z, 'C2UD')
-      zeta = J33_C * avg(x, 'LR2C') + J33_C * avg(y, 'UD2C') + J33_C * z
+      genx1 = J_LR * J11_LR * cartx + J_LR * J11_LR * avg(avg(carty, 'UD2C'), 'C2LR')+ J_LR * J11_LR * avg(cartz, 'C2LR')
+      genx2 = J_UD * J22_UD * avg(avg(cartx, 'LR2C'), 'C2UD') + J_UD * J22_UD *carty + J_UD * J22_UD * avg(cartz, 'C2UD')
+      genx3 = J_C * J33_C * avg(cartx, 'LR2C') + J_C * J33_C * avg(carty, 'UD2C') + J_C * J33_C * cartz
     elif fieldtype == 'B':
-      xi = J11_UD * x + J11_UD * avg(avg(y, 'LR2C'), 'C2UD') + J11_UD * avg(z, 'N2UD')
-      eta = J22_LR * avg(avg(x, 'UD2C'), 'C2LR') + J22_LR * y + J22_LR * avg(z, 'N2LR')
-      zeta = J33_N * avg(x, 'UD2N') + J33_N * avg(y, 'LR2N') + J33_N * z
+      genx1 = J_UD * J11_UD * cartx + J_UD * J11_UD * avg(avg(carty, 'LR2C'), 'C2UD') + J_UD * J11_UD * avg(cartz, 'N2UD')
+      genx2 = J_LR * J22_LR * avg(avg(cartx, 'UD2C'), 'C2LR') + J_LR * J22_LR * carty + J_LR * J22_LR * avg(cartz, 'N2LR')
+      genx3 = J_N * J33_N * avg(cartx, 'UD2N') + J_N * J33_N * avg(carty, 'LR2N') + J_N * J33_N * cartz
     
-    return xi, eta, zeta
+    return genx1, genx2, genx3
 
-def logic_to_physic(xi, eta, zeta, fieldtype):
-    '''To convert fields from logical coordinate (xi, eta, zeta) to physical coordinate (x, y, z)
+def general_to_cartesian(genx1, genx2, genx3, fieldtype):
+    ''' To convert fields from General geom. to Cartesian geom.
     fieltype=='E' or 'J': input -> LR,UD,c, output -> LR,UD,c
     fieltype=='B':        input -> UD,LR,n, output -> UD,LR,n
     '''
-    
     if (fieldtype == 'E') or (fieldtype == 'J'):
-      x = j11_LR * xi + j11_LR * avg(avg(eta, 'UD2C'), 'C2LR')+ j11_LR * avg(zeta, 'C2LR')
-      y = j22_UD * avg(avg(xi, 'LR2C'), 'C2UD') + j22_UD * eta + j22_UD * avg(zeta, 'C2UD')
-      z = j33_C * avg(xi, 'LR2C') + j33_C * avg(eta, 'UD2C') + j33_C * zeta
+      cartx = j_LR * j11_LR * genx1 + j_LR * j11_LR * avg(avg(genx2, 'UD2C'), 'C2LR')+ j_LR * j11_LR * avg(genx3, 'C2LR')
+      carty = j_UD * j22_UD * avg(avg(genx1, 'LR2C'), 'C2UD') + j_UD * j22_UD * genx2 + j_UD * j22_UD * avg(genx3, 'C2UD')
+      cartz = j_C * j33_C * avg(genx1, 'LR2C') + j_C * j33_C * avg(genx2, 'UD2C') + j_C * j33_C * genx3
     elif fieldtype == 'B':
-      x = j11_UD * xi + j11_UD * avg(avg(eta, 'LR2C'), 'C2UD') + j11_UD * avg(zeta, 'N2UD')
-      y = j22_LR * avg(avg(xi, 'UD2C'), 'C2LR') + j22_LR * eta + j22_LR * avg(zeta, 'N2LR')
-      z = j33_N * avg(xi, 'UD2N') + j33_N * avg(eta, 'LR2N') + j33_N * zeta
+      cartx = j_UD * j11_UD * genx1 + j_UD * j11_UD * avg(avg(genx2, 'LR2C'), 'C2UD') + j_UD * j11_UD * avg(genx3, 'N2UD')
+      carty = j_LR * j22_LR * avg(avg(genx1, 'UD2C'), 'C2LR') + j_LR * j22_LR * genx2 + j_LR * j22_LR * avg(genx3, 'N2LR')
+      cartz = j_N * j33_N * avg(genx1, 'UD2N') + j_N * j33_N * avg(genx2, 'LR2N') + j_N * j33_N * genx3
     
-    return x, y, z
+    return cartx, carty, cartz
 
-#def base_tangent_vector(dx1, dx2, gridtype):
-#    '''To convert base vector from logical coordinate (xi, eta, zeta) to physical coordinate (x, y, z)
-#    '''
-#    if gridtype == N:
-#        dx = j11_N * dx1 + j12_N * dx2
-#        dy = j21_N * dx1 + j22_N * dx2
-#    return dx, dy
+def cartesian_to_general_particle(cartx, carty):
+    '''To convert the particles position from Cartesian geom. to General geom.
+    '''
+    genx1 = cartx + eps*np.sin(2*np.pi*cartx/Lx)*np.sin(2*np.pi*carty/Ly)
+    genx2 = carty + eps*np.sin(2*np.pi*cartx/Lx)*np.sin(2*np.pi*carty/Ly)
 
-def physic_to_logic_particle(xi, eta):
-    ''' To convert particles position from physical coordinate (x, y, z) to logigal coordinate (xi, eta, zeta)
-    '''    
-    x = xi + eps*np.sin(2*np.pi*xi/Lx)*np.sin(2*np.pi*eta/Ly)
-    y = eta + eps*np.sin(2*np.pi*xi/Lx)*np.sin(2*np.pi*eta/Ly)
-
-    return x, y
+    return genx1, genx2
 
 def dirder(field, dertype):
     ''' To take the directional derivative of a quantity
@@ -800,15 +800,15 @@ def curl(fieldx, fieldy, fieldz, fieldtype):
     fieltype=='B': input -> UD,LR,n, output -> LR,UD,c
     '''
     if fieldtype == 'E':
-      curl_x =   (dirder(g31_C * avg(fieldx, 'LR2C'), 'C2UD') + dirder(g32_C * avg(fieldy, 'UD2C'), 'C2UD') + dirder(g33_C * fieldz, 'C2UD'))/J_UD*np.sqrt(g11_UD)
-      curl_y = - (dirder(g31_C * avg(fieldx, 'LR2C'), 'C2LR') + dirder(g32_C * avg(fieldy, 'UD2C'), 'C2LR') + dirder(g33_C * fieldz, 'C2LR'))/J_LR*np.sqrt(g22_LR)
+      curl_x =   (dirder(g31_C * avg(fieldx, 'LR2C'), 'C2UD') + dirder(g32_C * avg(fieldy, 'UD2C'), 'C2UD') + dirder(g33_C * fieldz, 'C2UD'))/J_UD#np.sqrt(g11_UD)
+      curl_y = - (dirder(g31_C * avg(fieldx, 'LR2C'), 'C2LR') + dirder(g32_C * avg(fieldy, 'UD2C'), 'C2LR') + dirder(g33_C * fieldz, 'C2LR'))/J_LR#np.sqrt(g22_LR)
       curl_z = (dirder(g21_UD * avg(avg(fieldx, 'LR2C'),'C2UD'), 'UD2N') + dirder(g22_UD * fieldy, 'UD2N') + dirder(g13_UD * avg(fieldz, 'C2UD'), 'UD2N')
-              - dirder(g11_LR * fieldx, 'LR2N') + dirder(g12_LR * avg(avg(fieldy, 'UD2C'), 'C2LR'), 'LR2N') + dirder(g13_LR * avg(fieldz, 'C2LR'), 'LR2N'))/J_N*np.sqrt(g33_N)
+              - dirder(g11_LR * fieldx, 'LR2N') + dirder(g12_LR * avg(avg(fieldy, 'UD2C'), 'C2LR'), 'LR2N') + dirder(g13_LR * avg(fieldz, 'C2LR'), 'LR2N'))/J_N#np.sqrt(g33_N)
     elif fieldtype == 'B':
-      curl_x =   (dirder(g31_N * avg(fieldx, 'UD2N'), 'N2LR') + dirder(g32_N * avg(fieldy, 'LR2N'), 'N2LR') + dirder(g33_N * fieldz, 'N2LR'))/J_LR*np.sqrt(g11_LR)
-      curl_y = - (dirder(g31_N * avg(fieldx, 'UD2N'), 'N2UD') + dirder(g32_N * avg(fieldy, 'LR2N'), 'N2UD') + dirder(g33_N * fieldz, 'N2UD'))/J_UD*np.sqrt(g22_UD)
+      curl_x =   (dirder(g31_N * avg(fieldx, 'UD2N'), 'N2LR') + dirder(g32_N * avg(fieldy, 'LR2N'), 'N2LR') + dirder(g33_N * fieldz, 'N2LR'))/J_LR#np.sqrt(g11_LR)
+      curl_y = - (dirder(g31_N * avg(fieldx, 'UD2N'), 'N2UD') + dirder(g32_N * avg(fieldy, 'LR2N'), 'N2UD') + dirder(g33_N * fieldz, 'N2UD'))/J_UD#np.sqrt(g22_UD)
       curl_z = (dirder(g21_LR * avg(avg(fieldx, 'UD2N'), 'N2LR'), 'LR2C') + dirder(g22_LR * fieldy, 'LR2C') + dirder(J_LR * g13_LR * avg(fieldz, 'N2LR'), 'LR2C')
-              - dirder(g11_UD * fieldx, 'UD2C') + dirder(g12_UD * avg(avg(fieldy, 'LR2N'), 'N2UD'), 'UD2C') + dirder(g13_UD * avg(fieldz, 'N2UD'), 'UD2C'))/J_C*np.sqrt(g33_C)
+              - dirder(g11_UD * fieldx, 'UD2C') + dirder(g12_UD * avg(avg(fieldy, 'LR2N'), 'N2UD'), 'UD2C') + dirder(g13_UD * avg(fieldz, 'N2UD'), 'UD2C'))/J_C#np.sqrt(g33_C)
     return curl_x, curl_y, curl_z
 
 def div(fieldx, fieldy, fieldz, fieldtype):
@@ -859,91 +859,167 @@ def residual(xkrylov):
     ''' Calculation of the residual of the equations
     This is the most important part: the definition of the problem
     '''
-    global E1, E2, E3, B1, B2, B3, u, v, w, QM, q, npart, dt
-
+    #global E1, E2, E3, B1, B2, B3, x, y, u, v, w, QM, q, npart, dt
     E1new, E2new, E3new, unew, vnew, wnew = krylov_to_phys(xkrylov)
-    # method:       YEE          Fabio's YEE
-    # u:            t = n+1/2 -> t = n 
-    # unew:         t = n+3/2 -> t = n+1
-    # ubar:         t = n+1   -> t = n+1/2    (=J1)
-    ubar = (unew + u)/2.
-    vbar = (vnew + v)/2.
-    wbar = (wnew + w)/2.
 
-    if relativistic:
-        gold = np.sqrt(1.+u**2+v**2+w**2)
-        gnew = np.sqrt(1.+unew**2+vnew**2+wnew**2)
-        gbar = (gold+gnew)/2.
-    else:
-        gbar = np.ones(npart)
-    
-    # kick-drift-kick form:
-    # x:            t = n   -> t = n
-    # xnew:         t = n+1 -> t = n+1
-    # xbar :        t = n+1/2 -> t = n+1/2
-    xbar = x + ubar/gbar*dt/2.
-    ybar = y + vbar/gbar*dt/2.
+    # t:    -1/2        0           1/2         1
+    #       B           Bbar        Bnew
+    #                   E                       Enew
+    #       u           ubar        unew
+    #                   x           xbar        xnew
+    #                   curlE       curlB
+    #                               J/xgen1
+    #                   Ep/Bp/xgen2
 
-    # periodic BC: modulo operator "%" which finds the reminder (ex. 10.1%10=0.1)
-    xbar = xbar%Lx
-    ybar = ybar%Ly
-    # conversion to general geom.
+
+    xnew = x + unew*dt
+    ynew = y + vnew*dt
+
+    xnew = xnew % Lx
+    ynew = ynew % Ly
+
+    xbar = (xnew + x)/2.
+    ybar = (ynew + y)/2.
+
     if perturb:
-        xgenbar, ygenbar = physic_to_logic_particle(xbar, ybar)
+        xgen1, ygen1 = cartesian_to_general_particle(xbar, ybar)
     else:
-        xgenbar, ygenbar = xbar, ybar
-    
-    Jx, Jy, Jz = particle_to_grid_J(xgenbar,ygenbar,ubar/gbar,vbar/gbar,wbar/gbar,q)
-    # J1:           t = n+1/2 -> t = n+1/2  (=curlB1)
-    J1, J2, J3 = physic_to_logic(Jx, Jy, Jz, 'J')
+        xgen1, ygen1 = xbar, ybar
 
-    # E1:           t = n+1/2 -> t = n
-    # E1new:        t = n+3/2 -> t = n+1
-    # E1bar:        t = n+1   -> t = n+1/2
-    E1bar = (E1new + E1)/2. 
-    E2bar = (E2new + E2)/2.
-    E3bar = (E3new + E3)/2.
-    
-    # curlE1:       t = n -> t = n+1/2  (=E1bar)
-    #E1bar1, E2bar1, E3bar1 = cartesian_to_general(E1bar, E2bar, E3bar, 'E')
-    #curlE1, curlE2, curlE3 = curl(E1bar1, E2bar1, E3bar1, 'E')
-    curlE1, curlE2, curlE3 = curl(E1bar,E2bar,E3bar,'E')
+    Jx, Jy, Jz = particle_to_grid_J(xgen1, ygen1, unew, vnew, wnew, q)
 
-    # B1:           t = -1/2 -> t = n
-    # B1bar:        t =  1/2 -> t = n+1/2
-    B1bar = B1 - dt/2.*curlE1
-    B2bar = B2 - dt/2.*curlE2
-    B3bar = B3 - dt/2.*curlE3
-    
-    #curlB1:        t = n+1/2 -> t = n+1/2  (=B1bar)
-    curlB1, curlB2, curlB3 = curl(B1bar,B2bar,B3bar,'B')
+    J1, J2, J3 = cartesian_to_general(Jx, Jy, Jz, 'J')
 
-    #res:           t = n+1/2 -> t = n+1/2  (=curlB1,J1)
-    resE1 = E1new - E1 - dt*curlB1 + dt*J1
-    resE2 = E2new - E2 - dt*curlB2 + dt*J2
-    resE3 = E3new - E3 - dt*curlB3 + dt*J3
+    curlE1, curlE2, curlE3 = curl(E1, E2, E3, 'E')
 
-    # Ex:           t = n -> t = n+1/2  (=E1bar)
-    Ex, Ey, Ez = logic_to_physic(E1bar, E2bar, E3bar, 'E')
-    # Bx:           t = n+1/2 -> t = n+1/2  (=B1bar)
-    Bx, By, Bz = logic_to_physic(B1bar, B2bar, B3bar, 'B')
-    
-    # Exp           t = n -> t = n+1/2  (=E1bar)
-    Exp = grid_to_particle(xgenbar,ygenbar,Ex,'LR')
-    Eyp = grid_to_particle(xgenbar,ygenbar,Ey,'UD')
-    Ezp = grid_to_particle(xgenbar,ygenbar,Ez,'C') 
-    # Bxp           t = n+1/2 -> t = n+1/2  (=B1bar)
-    Bxp = grid_to_particle(xgenbar,ygenbar,Bx,'UD')
-    Byp = grid_to_particle(xgenbar,ygenbar,By,'LR')
-    Bzp = grid_to_particle(xgenbar,ygenbar,Bz,'N') 
-    
-    # resu:         t = n -> t = n+1/2 (=Exp,Bxp,ubar)
-    resu = unew - u - QM * (Exp + vbar/gbar*Bzp - wbar/gbar*Byp)*dt
-    resv = vnew - v - QM * (Eyp - ubar/gbar*Bzp + wbar/gbar*Bxp)*dt
-    resw = wnew - w - QM * (Ezp + ubar/gbar*Byp - vbar/gbar*Bxp)*dt
+    B1new = B1 - dt * curlE1
+    B2new = B2 - dt * curlE2
+    B3new = B3 - dt * curlE3
 
-    ykrylov = phys_to_krylov(resE1,resE2,resE3,resu,resv,resw)
-    return  ykrylov
+    curlB1, curlB2, curlB3 = curl(B1new, B2new, B3new,'B')
+
+    resE1 = E1new - E1 - dt * curlB1 + dt * J1
+    resE2 = E2new - E2 - dt * curlB2 + dt * J2
+    resE3 = E3new - E3 - dt * curlB3 + dt * J3
+
+    B1bar = (B1new + B1) / 2.
+    B2bar = (B2new + B2) / 2.
+    B3bar = (B3new + B3) / 2.
+
+    ubar = (unew + u) / 2.
+    vbar = (vnew + v) / 2.
+    wbar = (wnew + w) / 2.
+
+    Ex, Ey, Ez = general_to_cartesian(E1, E2, E3, 'E')
+    Bx, By, Bz = general_to_cartesian(B1bar, B2bar, B3bar, 'B')
+
+    if perturb:
+        xgen2, ygen2 = cartesian_to_general_particle(x, y)
+    else:
+        xgen2, ygen2 = x, y
+
+    Exp = grid_to_particle(xgen2, ygen2, Ex, 'LR')
+    Eyp = grid_to_particle(xgen2, ygen2, Ey, 'UD')
+    Ezp = grid_to_particle(xgen2, ygen2, Ez, 'C')
+    Bxp = grid_to_particle(xgen2, ygen2, Bx, 'UD')
+    Byp = grid_to_particle(xgen2, ygen2, By, 'LR')
+    Bzp = grid_to_particle(xgen2, ygen2, Bz, 'N')
+
+    resu = unew - u - QM * (Exp + vbar * Bzp - wbar * Byp) * dt
+    resv = vnew - v - QM * (Eyp - ubar * Bzp + wbar * Bxp) * dt
+    resw = wnew - w - QM * (Ezp + ubar * Byp - vbar * Bxp) * dt
+
+    ykrylov = phys_to_krylov(resE1, resE2, resE3, resu, resv, resw)
+    return ykrylov
+
+
+
+
+
+"""
+global E1, E2, E3, B1, B2, B3, x, y, u, v, w, QM, q, npart, dt
+E1new, E2new, E3new, unew, vnew, wnew = krylov_to_phys(xkrylov)
+# method:       YEE          Fabio's YEE
+# u:            t = n+1/2 -> t = n 
+# unew:         t = n+3/2 -> t = n+1
+# ubar:         t = n+1   -> t = n+1/2    (=J1)
+ubar = (unew + u)/2.
+vbar = (vnew + v)/2.
+wbar = (wnew + w)/2.
+if relativistic:
+    gold = np.sqrt(1.+u**2+v**2+w**2)
+    gnew = np.sqrt(1.+unew**2+vnew**2+wnew**2)
+    gbar = (gold+gnew)/2.
+else:
+    gbar = np.ones(npart)
+
+# x:            t = n   -> t = n
+# xnew:         t = n+1 -> t = n+1
+# xbar :        t = n+1/2 -> t = n+1/2
+xbar = x + ubar/gbar*dt/2.
+ybar = y + vbar/gbar*dt/2.
+
+# periodic BC: modulo operator "%" which finds the reminder (ex. 10.1%10=0.1)
+xbar = xbar%Lx
+ybar = ybar%Ly
+# conversion to general geom.
+if perturb:
+    xgenbar, ygenbar = cartesian_to_general_particle(xbar, ybar)
+else:
+    xgenbar, ygenbar = xbar, ybar
+
+Jx, Jy, Jz = particle_to_grid_J(xgenbar,ygenbar,ubar/gbar,vbar/gbar,wbar/gbar,q)
+# J1:           t = n+1/2 -> t = n+1/2  (=curlB1)
+J1, J2, J3 = cartesian_to_general(Jx, Jy, Jz, 'J')
+
+# E1:           t = n+1/2 -> t = n
+# E1new:        t = n+3/2 -> t = n+1
+# E1bar:        t = n+1   -> t = n+1/2
+E1bar = (E1new + E1)/2. 
+E2bar = (E2new + E2)/2.
+E3bar = (E3new + E3)/2.
+
+# curlE1:       t = n -> t = n+1/2  (=E1bar)
+curlE1, curlE2, curlE3 = curl(E1bar,E2bar,E3bar,'E')
+
+# B1:           t = -1/2 -> t = n
+# B1bar:        t =  1/2 -> t = n+1/2
+B1bar = B1 - dt/2.*curlE1
+B2bar = B2 - dt/2.*curlE2
+B3bar = B3 - dt/2.*curlE3
+
+#curlB1:        t = n+1/2 -> t = n+1/2  (=B1bar)
+curlB1, curlB2, curlB3 = curl(B1bar,B2bar,B3bar,'B')
+
+#res:           t = n+1/2 -> t = n+1/2  (=curlB1,J1)
+resE1 = E1new - E1 - dt*curlB1 + dt*J1
+resE2 = E2new - E2 - dt*curlB2 + dt*J2
+resE3 = E3new - E3 - dt*curlB3 + dt*J3
+
+# Ex:           t = n -> t = n+1/2  (=E1bar)
+Ex, Ey, Ez = general_to_cartesian(E1bar, E2bar, E3bar, 'E')
+# Bx:           t = n+1/2 -> t = n+1/2  (=B1bar)
+Bx, By, Bz = general_to_cartesian(B1bar, B2bar, B3bar, 'B')
+
+# Exp           t = n -> t = n+1/2  (=E1bar)
+Exp = grid_to_particle(xgenbar,ygenbar,Ex,'LR')
+Eyp = grid_to_particle(xgenbar,ygenbar,Ey,'UD')
+Ezp = grid_to_particle(xgenbar,ygenbar,Ez,'C') 
+# Bxp           t = n+1/2 -> t = n+1/2  (=B1bar)
+Bxp = grid_to_particle(xgenbar,ygenbar,Bx,'UD')
+Byp = grid_to_particle(xgenbar,ygenbar,By,'LR')
+Bzp = grid_to_particle(xgenbar,ygenbar,Bz,'N') 
+
+# resu:         t = n -> t = n+1/2 (=Exp,Bxp,ubar)
+resu = unew - u - QM * (Exp + vbar/gbar*Bzp - wbar/gbar*Byp)*dt
+resv = vnew - v - QM * (Eyp - ubar/gbar*Bzp + wbar/gbar*Bxp)*dt
+resw = wnew - w - QM * (Ezp + ubar/gbar*Byp - vbar/gbar*Bxp)*dt
+
+ykrylov = phys_to_krylov(resE1,resE2,resE3,resu,resv,resw)
+return  ykrylov
+"""
+
+
 
 def grid_to_particle(xk, yk, f, gridtype):
     ''' Interpolation of grid quantity to particle
@@ -1095,105 +1171,140 @@ def particle_to_grid_J(xk, yk, uk, vk, wk, qk):
 
 define_geometry()
 
-#base_tangent_vector()
+print(g11_C)
+print(g12_C)
+print(g13_C)
+print(g22_C)
+print(g23_C)
+print(g33_C)
 
-if perturb:
-    xgen, ygen = physic_to_logic_particle(x, y)
-else:
-    xgen, ygen = x, y
-    
-Jx, Jy, Jz = particle_to_grid_J(xgen, ygen, u, v, w, q)
-J1, J2, J3 = physic_to_logic(Jx, Jy, Jz, 'J')
+#if perturb:
+#    xgen, ygen = cartesian_to_general_particle(x, y)
+#else:
+#    xgen, ygen = x, y
+#
+#Jx, Jy, Jz = particle_to_grid_J(xgen, ygen, u, v, w, q)
+#J1, J2, J3 = cartesian_to_general(Jx, Jy, Jz, 'J')
+#
+#if relativistic:
+#    histEnergyP1 = [np.sum((g[0:npart1]-1.)*abs(q[0:npart1]/QM[0:npart1]))]
+#    histEnergyP2 = [np.sum((g[npart1:npart]-1.)*abs(q[npart1:npart]/QM[npart1:npart]))]
+##elif perturb:
+##    histEnergyP1 = [0.5*np.sum((J_C * g11_C * avg(E1 * J1, 'LR2C') + 2. * J_C * g12_C * avg(E1, 'LR2C') * avg(J2, 'UD2C')
+##                    + J_C * g22_C * avg(E2 * J2, 'UD2C') + J_C * g33_C * E3 * J3)/2.*dx*dy)]
+##    histEnergyP2 = [0.5*np.sum((J_C * g11_C * avg(E1 * J1, 'LR2C') + 2. * J_C * g12_C * avg(E1, 'LR2C') * avg(J2, 'UD2C')
+##                    + J_C * g22_# * avg(E2 * J2, 'UD2C') + J_C * g33_C * E3 * J3)/2.*dx*dy)]
+##elif (not relativistic) and (not perturb):
+##    histEnergyP1 = [np.sum((u[0:npart1]**2+v[0:npart1]**2+w[0:npart1]**2)/2.*abs(q[0:npart1]/QM[0:npart1]))]
+##    histEnergyP2 = [np.sum((u[npart1:npart]**2+v[npart1:npart]**2 +w[npart1:npart]**2)/2.*abs(q[npart1:npart]/QM[npart1:npart]))]
+#else:
+#    histEnergyP1 = [np.sum((u[0:npart1]**2+v[0:npart1]**2+w[0:npart1]**2)/2.*abs(q[0:npart1]/QM[0:npart1]))]
+#    histEnergyP2 = [np.sum((u[npart1:npart]**2+v[npart1:npart]**2 +w[npart1:npart]**2)/2.*abs(q[npart1:npart]/QM[npart1:npart]))]
+#
+##if perturb:
+##    # Energy -> defined in C
+##    histEnergyE = [(np.sum(J_C * g11_C * avg(E1**2, 'LR2C')) +  2.*np.sum(J_C * g12_C * avg(E1, 'LR2C') * avg(E2, 'UD2C'))\
+##                 +  np.sum(J_C * g22_C * avg(E2**2, 'UD2C')) +  np.sum(J_C * g33_C * E3**2))/2.*dx*dy]
+##    histEnergyB = [(np.sum(J_C * g11_C * avg(B1**2, 'UD2C')) + 2.*np.sum(J_C * g12_C * avg(B1, 'UD2C') * avg(B2, 'LR2C'))
+##                 +  np.sum(J_C * g22_C * avg(B2**2, 'LR2C')) +  np.sum(J_C * g33_C * avg(avg(B3**2, 'N2LR'), 'LR2C')))/2.*dx*dy]
+##
+##    histEnergyTot=[histEnergyE[0]+histEnergyB[0]+histEnergyP1[0]+histEnergyP2[0]]
+##
+##    histMomentumx = [np.sum(u[0:npart])]
+##    histMomentumy = [np.sum(v[0:npart])]
+##    histMomentumz = [np.sum(w[0:npart])]
+##    histMomentumTot = [histMomentumx[0] + histMomentumy[0] + histMomentumz[0]]
+##
+##    print('cycle 0, energy=',histEnergyTot[0])
+##    print('energyP1=',histEnergyP1[0],'energyP2=',histEnergyP2[0])
+##    print('energyE=',histEnergyE[0])
+##    print('energyB=',histEnergyB[0])
+##    print('Momentumx=',histMomentumx[0],'Momentumy=',histMomentumy[0],'Momentumz=',histMomentumz[0])
+#if perturb:
+#    # Energy -> defined in C
+#    histEnergyE1=[np.sum(J_C * g11_C * avg(E1**2, 'LR2C') \
+#                       + J_C * g12_C * avg(E1, 'LR2C') * avg(E2, 'UD2C'))/2.*dx*dy] #\
+#                       #+ J_C * g13_C * avg(E1, 'LR2C') * E3)/2.*dx*dy]
+#    histEnergyE2=[np.sum(J_C * g21_C * avg(E2, 'UD2C') * avg(E1, 'LR2C') \
+#                       + J_C * g22_C * avg(E2**2, 'UD2C'))/2.*dx*dy]# \
+#                       #+ J_C * g23_C * avg(E2, 'UD2C') * E3)/2.*dx*dy]
+#    histEnergyE3=[np.sum(#J_C * g31_C * E3 * avg(E1, 'LR2C') \
+#                       #+ J_C * g32_C * E3 * avg(E2, 'UD2C') \
+#                       + J_C * g33_C * E3**2)/2.*dx*dy]
+#    histEnergyB1=[np.sum(J_C * g11_C * avg(B1**2, 'UD2C')
+#                       + J_C * g12_C * avg(B1, 'UD2C') * avg(B2, 'LR2C'))/2.*dx*dy]# \
+#                       #+ J_C * g13_C * avg(B1, 'UD2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy]
+#    histEnergyB2=[np.sum(J_C * g21_C * avg(B2, 'LR2C') * avg(B1, 'UD2C')\
+#                       + J_C * g22_C * avg(B2**2, 'LR2C'))/2.*dx*dy]# \
+#                       #+ J_C * g23_C * avg(B2, 'LR2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy]
+#    histEnergyB3=[np.sum(#J_C * g31_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B1, 'UD2C') \
+#                       #+ J_C * g32_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B2, 'LR2C') \
+#                       + J_C * g33_C * avg(avg(B3**2, 'N2LR'), 'LR2C'))/2.*dx*dy]
+#else:
+#    histEnergyE1=[np.sum(E1[0:nxn-1,:]**2)/2.*dx*dy]
+#    histEnergyE2=[np.sum(E2[:,0:nyn-1]**2)/2.*dx*dy]
+#    histEnergyE3=[np.sum(E3[:,:]**2)/2.*dx*dy]
+#    histEnergyB1=[np.sum(B1[:,0:nyn-1]**2)/2.*dx*dy]
+#    histEnergyB2=[np.sum(B2[0:nxn-1,:]**2)/2.*dx*dy]
+#    histEnergyB3=[np.sum(B3[0:nxn-1,0:nyn-1]**2)/2.*dx*dy]
+#
+#histEnergyTot=[histEnergyP1[0]+histEnergyP2[0]+histEnergyE1[0]+histEnergyE2[0]+histEnergyE3[0]+histEnergyB1[0]+histEnergyB2[0]+histEnergyB3[0]]
+#
+#histMomentumx = [np.sum(u[0:npart])]
+#histMomentumy = [np.sum(v[0:npart])]
+#histMomentumz = [np.sum(w[0:npart])]
+#histMomentumTot = [histMomentumx[0] + histMomentumy[0] + histMomentumz[0]]
+#
+#energyP[0] = histEnergyP1[0] + histEnergyP2[0]
+#energyE[0] = histEnergyE1[0] + histEnergyE2[0] + histEnergyE3[0]
+#energyB[0] = histEnergyB1[0] + histEnergyB2[0] + histEnergyB3[0]
+#
+#
+#
+#if perturb:
+#    xgen, ygen = cartesian_to_general_particle(x, y)
+#else:
+#    xgen, ygen = x, y
+#
+#rho_ion = - particle_to_grid_rho(xgen, ygen, q)
+#rho = particle_to_grid_rho(xgen, ygen, q)
+#temp = 0
+#
+#
+#if plot_dir == True:
+#    myplot_map(xn, yn, B3, title='B3', xlabel='x', ylabel='y')
+#    filename1 = PATH1 + 'B3_' + '%04d'%temp + '.png'
+#    plt.savefig(filename1, dpi=ndpi)
+#
+#    if nppc!=0:
+#        myplot_particle_map(x, y)
+#        filename1 = PATH1 + 'part_' + '%04d'%temp + '.png'
+#        plt.savefig(filename1, dpi=ndpi)
+#
+#        myplot_phase_space(x, v, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
+#        filename1 = PATH1 + 'phase_' + '%04d'%temp + '.png'
+#        plt.savefig(filename1, dpi=ndpi)
+#
+#        myplot_map(xc, yc, rho, title='rho', xlabel='x', ylabel='y')
+#        filename1 = PATH1 + 'rho_' + '%04d'%temp + '.png'
+#        plt.savefig(filename1, dpi=ndpi)
+#
+#        myplot_map(xc, yc, div(E1, E2, E3, 'E') - rho, title='div(E)-rho map', xlabel='x', ylabel='y')
+#        filename1 = PATH1 + 'div_rho_' + '%04d'%temp + '.png'
+#        plt.savefig(filename1, dpi=ndpi)
+#
+#cpu_time = zeros(nt+1, np.float64)
 
-if relativistic:
-    histEnergyP1 = [np.sum((g[0:npart1]-1.)*abs(q[0:npart1]/QM[0:npart1]))]
-    histEnergyP2 = [np.sum((g[npart1:npart]-1.)*abs(q[npart1:npart]/QM[npart1:npart]))]
-else:
-    #histEnergyP1 = [np.sum((u[0:npart1]**2+v[0:npart1]**2+w[0:npart1]**2)/2.*abs(q[0:npart1]/QM[0:npart1]))]
-    #histEnergyP2 = [np.sum((u[npart1:npart]**2+v[npart1:npart]**2 +w[npart1:npart]**2)/2.*abs(q[npart1:npart]/QM[npart1:npart]))]
-    histEnergyP1 = [np.sum((u[0:npart1]**2+v[0:npart1]**2+w[0:npart1]**2)/2.*abs(q[0:npart1]/QM[0:npart1]))]
-    histEnergyP2 = [np.sum((u[npart1:npart]**2+v[npart1:npart]**2 +w[npart1:npart]**2)/2.*abs(q[npart1:npart]/QM[npart1:npart]))]
 
-if perturb:
-    # Energy -> defined in C
-    histEnergyE1=[np.sum(J_C * g11_C * avg(E1**2, 'LR2C') \
-                       + J_C * g12_C * avg(E1, 'LR2C') * avg(E2, 'UD2C'))/2.*dx*dy] #\
-                       #+ J_C * g13_C * avg(E1, 'LR2C') * E3)/2.*dx*dy]
-    histEnergyE2=[np.sum(J_C * g21_C * avg(E2, 'UD2C') * avg(E1, 'LR2C') \
-                       + J_C * g22_C * avg(E2**2, 'UD2C'))/2.*dx*dy]# \
-                       #+ J_C * g23_C * avg(E2, 'UD2C') * E3)/2.*dx*dy]
-    histEnergyE3=[np.sum(#J_C * g31_C * E3 * avg(E1, 'LR2C') \
-                       #+ J_C * g32_C * E3 * avg(E2, 'UD2C') \
-                       + J_C * g33_C * E3**2)/2.*dx*dy]
-    histEnergyB1=[np.sum(J_C * g11_C * avg(B1**2, 'UD2C')
-                       + J_C * g12_C * avg(B1, 'UD2C') * avg(B2, 'LR2C'))/2.*dx*dy]# \
-                       #+ J_C * g13_C * avg(B1, 'UD2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy]
-    histEnergyB2=[np.sum(J_C * g21_C * avg(B2, 'LR2C') * avg(B1, 'UD2C')\
-                       + J_C * g22_C * avg(B2**2, 'LR2C'))/2.*dx*dy]# \
-                       #+ J_C * g23_C * avg(B2, 'LR2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy]
-    histEnergyB3=[np.sum(#J_C * g31_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B1, 'UD2C') \
-                       #+ J_C * g32_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B2, 'LR2C') \
-                       + J_C * g33_C * avg(avg(B3**2, 'N2LR'), 'LR2C'))/2.*dx*dy]
-else:
-    histEnergyE1=[np.sum(E1[0:nxn-1,:]**2)/2.*dx*dy]
-    histEnergyE2=[np.sum(E2[:,0:nyn-1]**2)/2.*dx*dy]
-    histEnergyE3=[np.sum(E3[:,:]**2)/2.*dx*dy]
-    histEnergyB1=[np.sum(B1[:,0:nyn-1]**2)/2.*dx*dy]
-    histEnergyB2=[np.sum(B2[0:nxn-1,:]**2)/2.*dx*dy]
-    histEnergyB3=[np.sum(B3[0:nxn-1,0:nyn-1]**2)/2.*dx*dy]
+#print('cycle 0, energy=',histEnergyTot[0])
+#print('energyP1=',histEnergyP1[0],'energyP2=',histEnergyP2[0])
+#print('energyEx=',histEnergyE1[0],'energyEy=',histEnergyE2[0],'energyEz=',histEnergyE3[0])
+#print('energyBx=',histEnergyB1[0],'energyBy=',histEnergyB2[0],'energyBz=',histEnergyB3[0])
+#print('Momentumx=',histMomentumx[0],'Momentumy=',histMomentumy[0],'Momentumz=',histMomentumz[0])
 
-histEnergyTot=[histEnergyP1[0]+histEnergyP2[0]+histEnergyE1[0]+histEnergyE2[0]+histEnergyE3[0]+histEnergyB1[0]+histEnergyB2[0]+histEnergyB3[0]]
-
-histMomentumx = [np.sum(u[0:npart])]
-histMomentumy = [np.sum(v[0:npart])]
-histMomentumz = [np.sum(w[0:npart])]
-histMomentumTot = [histMomentumx[0] + histMomentumy[0] + histMomentumz[0]]
-
-energyP[0] = histEnergyP1[0] + histEnergyP2[0]
-energyE[0] = histEnergyE1[0] + histEnergyE2[0] + histEnergyE3[0]
-energyB[0] = histEnergyB1[0] + histEnergyB2[0] + histEnergyB3[0]
-
-print('cycle 0, energy=',histEnergyTot[0])
-print('energyP1=',histEnergyP1[0],'energyP2=',histEnergyP2[0])
-print('energyEx=',histEnergyE1[0],'energyEy=',histEnergyE2[0],'energyEz=',histEnergyE3[0])
-print('energyBx=',histEnergyB1[0],'energyBy=',histEnergyB2[0],'energyBz=',histEnergyB3[0])
-print('Momentumx=',histMomentumx[0],'Momentumy=',histMomentumy[0],'Momentumz=',histMomentumz[0])
-  
-if perturb:
-    xgen, ygen = physic_to_logic_particle(x, y)
-else:
-    xgen, ygen = x, y
-
-rho_ion = - particle_to_grid_rho(xgen, ygen, q)
-rho = particle_to_grid_rho(xgen, ygen, q)
-temp = 0
 start = time.time()
 
-if plot_dir == True:
-    myplot_map(xn, yn, B3, title='B3', xlabel='x', ylabel='y')
-    filename1 = PATH1 + 'B3_' + '%04d'%temp + '.png'
-    plt.savefig(filename1, dpi=ndpi)
-
-    if nppc!=0:
-        myplot_particle_map(x, y)
-        filename1 = PATH1 + 'part_' + '%04d'%temp + '.png'
-        plt.savefig(filename1, dpi=ndpi)
-   
-        myplot_phase_space(x, v, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
-        filename1 = PATH1 + 'phase_' + '%04d'%temp + '.png'
-        plt.savefig(filename1, dpi=ndpi)
-
-        myplot_map(xc, yc, rho, title='rho', xlabel='x', ylabel='y')
-        filename1 = PATH1 + 'rho_' + '%04d'%temp + '.png'
-        plt.savefig(filename1, dpi=ndpi)
-
-        myplot_map(xc, yc, div(E1, E2, E3, 'E') - rho, title='div(E)-rho map', xlabel='x', ylabel='y')
-        filename1 = PATH1 + 'div_rho_' + '%04d'%temp + '.png'
-        plt.savefig(filename1, dpi=ndpi)
-
-cpu_time = zeros(nt+1, np.float64)
-
-for it in range(1,nt+1):
+for it in range(0,nt):
     plt.clf()
     #start = time.time()
 
@@ -1222,21 +1333,62 @@ for it in range(1,nt+1):
     #stop = time.time()
     #cpu_time[it] = stop - start
 
-    E1new, E2new, E3new, unew, vnew, wnew = krylov_to_phys(sol)
-
-    if relativistic:
-        gnew = np.sqrt(1.+unew**2+vnew**2+wnew**2)
-        gold = np.sqrt(1.+u**2+v**2+w**2)
-        gbar = (gold+gnew)/2.
-    else:
-        gbar = np.ones(npart)
+    #if relativistic:
+    #    gnew = np.sqrt(1.+unew**2+vnew**2+wnew**2)
+    #    gold = np.sqrt(1.+u**2+v**2+w**2)
+    #    gbar = (gold+gnew)/2.
+    #else:
+    #    gbar = np.ones(npart)
     
     # position is evolved in physical space 
     # pushed by general geom. fields converted
-    ubar = (unew + u)/2.
-    vbar = (vnew + v)/2.
-    x += ubar/gbar*dt
-    y += vbar/gbar*dt
+    #ubar = (unew + u)/2.
+    #vbar = (vnew + v)/2.
+
+    # t:    -1/2        0           1/2         1
+    #       B           Bbar        Bnew
+    #                   E/Eold                  Enew
+    #       u                       unew
+    #                   x                       xnew
+    #                   curlE
+    #                   Energy
+
+    E1new, E2new, E3new, unew, vnew, wnew = krylov_to_phys(sol)
+
+    xnew = x + unew * dt
+    ynew = y + vnew * dt
+
+    xnew = xnew % Lx
+    ynew = ynew % Ly
+
+    curlE1, curlE2, curlE3 = curl(E1, E2, E3, 'E')
+
+    B1new = B1 - dt * curlE1
+    B2new = B2 - dt * curlE2
+    B3new = B3 - dt * curlE3
+
+    B1bar = (B1new + B1)/2.
+    B2bar = (B2new + B2)/2.
+    B3bar = (B3new + B3)/2.
+    E1old = E1
+    E2old = E2
+    E3old = E3
+    x = xnew
+    y = ynew
+    u = unew
+    v = vnew
+    w = wnew
+    E1 = E1new
+    E2 = E2new
+    E3 = E3new
+    B1 = B1new
+    B2 = B2new
+    B3 = B3new
+
+
+    """
+    x += u*dt
+    y += v*dt
     x = x%Lx
     y = y%Ly
     u = unew
@@ -1248,23 +1400,26 @@ for it in range(1,nt+1):
     E3bar = (E3new + E3)/2.
 
     curlE1, curlE2, curlE3 = curl(E1bar, E2bar, E3bar,'E')
+
     B1 = B1 - dt*curlE1
     B2 = B2 - dt*curlE2
     B3 = B3 - dt*curlE3
     
     if perturb:
-        xgen, ygen = physic_to_logic_particle(x, y)
+        xgen, ygen = cartesian_to_general_particle(x, y)
+    else:
+        xgen, ygen = x, y
+    """
+
+    if perturb:
+        xgen, ygen = cartesian_to_general_particle(x, y)
     else:
         xgen, ygen = x, y
 
     rho = particle_to_grid_rho(xgen, ygen, q)
-    divE[it] = np.sum(div(E1new, E2new, E3new, 'E'))
+    divE[it] = np.sum(div(E1, E2, E3, 'E'))
     divB[it] = np.sum(div(B1, B2, B3, 'B'))
     divE_rho[it] = np.sum(np.abs(div(E1new, E2new, E3new, 'E')) - np.abs(rho))
-    
-    E1 = E1new
-    E2 = E2new
-    E3 = E3new
     
     E1time[it] = np.sum(E1)
     E2time[it] = np.sum(E2)
@@ -1276,33 +1431,69 @@ for it in range(1,nt+1):
     if relativistic:
         energyP1 = np.sum((g[0:npart1]-1.)*abs(q[0:npart1]/QM[0:npart1]))
         energyP2 = np.sum((g[npart1:npart]-1.)*abs(q[npart1:npart]/QM[npart1:npart]))
+    #elif perturb:
+    #    energyP1 = 0.5*np.sum((J_C * g11_C * avg(E1 * J1, 'LR2C') + 2. * J_C * avg(g12_LR, 'LR2C') * avg(E1, 'LR2C') * avg(J2, 'UD2C')
+    #                         + J_C * g22_C * avg(E2 * J2, 'UD2C') + J_C * g33_C * E3 * J3)/2.*dx*dy)
+    #    energyP2 = 0.5*np.sum((J_C * g11_C * avg(E1 * J1, 'LR2C') + 2. * J_C * avg(g12_LR, 'LR2C') * avg(E1, 'LR2C') * avg(J2, 'UD2C')
+    #                         + J_C * g22_C * avg(E2 * J2, 'UD2C') + J_C * g33_C * E3 * J3)/2.*dx*dy)
+    #elif (not relativistic) and (not perturb):
     else:
-        #energyP1 = 0.5*np.sum((J_C * g11_C * avg(E1 * J1, 'LR2C') + 2. * J_C * avg(g12_LR, 'LR2C') * avg(E1, 'LR2C') * avg(J2, 'UD2C')
-        #                     + J_C * g22_C * avg(E2 * J2, 'UD2C') + J_C * g33_C * E3 * J3)/2.*dx*dy)
-        #energyP2 = 0.5*np.sum((J_C * g11_C * avg(E1 * J1, 'LR2C') + 2. * J_C * avg(g12_LR, 'LR2C') * avg(E1, 'LR2C') * avg(J2, 'UD2C')
-        energyP1 = np.sum((u[0:npart1]**2+v[0:npart1]**2+w[0:npart1]**2)/2.*abs(q[0:npart1]/QM[0:npart1]))
-        energyP2 = np.sum((u[npart1:npart]**2+v[npart1:npart]**2 +w[npart1:npart]**2)/2.*abs(q[npart1:npart]/QM[npart1:npart]))
+        energyP1[it] = np.sum((u[0:npart1]**2+v[0:npart1]**2+w[0:npart1]**2)/2.*abs(q[0:npart1]/QM[0:npart1]))
+        energyP2[it] = np.sum((u[npart1:npart]**2+v[npart1:npart]**2 +w[npart1:npart]**2)/2.*abs(q[npart1:npart]/QM[npart1:npart]))
  
+#    if perturb:
+#        # Energy -> defined in C
+#        energyE = (np.sum(J_C * g11_C * avg(E1**2, 'LR2C')) +  2.*np.sum(J_C * g12_C * avg(E1, 'LR2C') * avg(E2, 'UD2C'))\
+#                +  np.sum(J_C * g22_C * avg(E2**2, 'UD2C')) +  np.sum(J_C * g33_C * E3**2))/2.*dx*dy
+#        energyB = (np.sum(J_C * g11_C * avg(B1**2, 'UD2C')) + 2.*np.sum(J_C * g12_C * avg(B1, 'UD2C') * avg(B2, 'LR2C'))\
+#                +  np.sum(J_C * g22_C * avg(B2**2, 'LR2C')) +  np.sum(J_C * g33_C * avg(avg(B3**2, 'N2LR'), 'LR2C')))/2.*dx*dy
+#        
+#        energyTot = energyE + energyB + energyP1 + energyP2 
+#
+#        momentumx = np.sum(unew[0:npart])
+#        momentumy = np.sum(vnew[0:npart])
+#        momentumz = np.sum(wnew[0:npart])
+#        momentumTot = momentumx + momentumy + momentumz
+#
+#        histEnergyP1.append(energyP1)
+#        histEnergyP2.append(energyP2)
+#        histEnergyE.append(energyE)
+#        histEnergyB.append(energyB)
+#        histEnergyTot.append(energyTot)
+#    
+#        histMomentumx.append(momentumx)
+#        histMomentumy.append(momentumy)
+#        histMomentumz.append(momentumz)
+#        histMomentumTot.append(momentumTot)
+#
+#        energyP[it] = histEnergyP1[it] + histEnergyP2[it]
+#        
+#        print('cycle',it,'energy =',histEnergyTot[it])
+#        print('energyP1=',histEnergyP1[it],'energyP2=',histEnergyP2[it])
+#        print('energyE=',histEnergyE[it])
+#        print('energyB=',histEnergyB[it])
+#        print('relative energy change=',(histEnergyTot[it]-histEnergyTot[0])/histEnergyTot[0])
+#        print('momento totale= ', histMomentumTot[it])
     if perturb:
         # Energy -> defined in C
-        energyE1= np.sum(J_C * g11_C * avg(E1**2, 'LR2C') \
-                        + J_C * g12_C * avg(E1, 'LR2C') * avg(E2, 'UD2C'))/2.*dx*dy# \
+        energyE1[it]= np.sum(J_C * g11_C * avg(E1old**2, 'LR2C') \
+                        + J_C * g12_C * avg(E1old, 'LR2C') * avg(E2old, 'UD2C'))/2.*dx*dy# \
                         #+ J_C * g13_C * avg(E1, 'LR2C') * E3)/2.*dx*dy 
-        energyE2= np.sum(J_C * g21_C * avg(E2, 'UD2C') * avg(E1, 'LR2C') \
-                         + J_C * g22_C * avg(E2**2, 'UD2C'))/2.*dx*dy# \
+        energyE2[it]= np.sum(J_C * g21_C * avg(E2old, 'UD2C') * avg(E1old, 'LR2C') \
+                         + J_C * g22_C * avg(E2old**2, 'UD2C'))/2.*dx*dy# \
                         #+ J_C * g23_C * avg(E2, 'UD2C') * E3)/2.*dx*dy 
-        energyE3= np.sum(#J_C * g31_C * E3 * avg(E1, 'LR2C') \
+        energyE3[it]= np.sum(#J_C * g31_C * E3 * avg(E1, 'LR2C') \
                        #+ J_C * g32_C * E3 * avg(E2, 'UD2C') \
-                       + J_C * g33_C * E3**2)/2.*dx*dy 
-        energyB1= np.sum(J_C * g11_C * avg(B1, 'UD2C')**2 \
-                       + J_C * g12_C * avg(B1, 'UD2C') * avg(B2, 'LR2C'))/2.*dx*dy# \
+                       + J_C * g33_C * E3old**2)/2.*dx*dy
+        energyB1[it]= np.sum(J_C * g11_C * avg(B1bar, 'UD2C')**2 \
+                       + J_C * g12_C * avg(B1bar, 'UD2C') * avg(B2bar, 'LR2C'))/2.*dx*dy# \
                        #+ J_C * g13_C * avg(B1, 'UD2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy 
-        energyB2= np.sum(J_C * g21_C * avg(B2, 'LR2C') * avg(B1, 'UD2C')\
-                         + J_C * g22_C * avg(B2**2, 'LR2C'))/2.*dx*dy  # \
+        energyB2[it]= np.sum(J_C * g21_C * avg(B2bar, 'LR2C') * avg(B1bar, 'UD2C')\
+                         + J_C * g22_C * avg(B2bar**2, 'LR2C'))/2.*dx*dy  # \
                        #+ J_C * g23_C * avg(B2, 'LR2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy 
-        energyB3= np.sum(#J_C * g31_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B1, 'UD2C') \
+        energyB3[it]= np.sum(#J_C * g31_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B1, 'UD2C') \
                        #+ J_C * g32_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B2, 'LR2C') \
-                       + J_C * g33_C * avg(avg(B3**2, 'N2LR'), 'LR2C'))/2.*dx*dy
+                       + J_C * g33_C * avg(avg(B3bar**2, 'N2LR'), 'LR2C'))/2.*dx*dy
     else:
         energyE1 = np.sum(E1[0:nxn-1,:]**2)/2.*dx*dy
         energyE2 = np.sum(E2[:,0:nyn-1]**2)/2.*dx*dy
@@ -1311,38 +1502,38 @@ for it in range(1,nt+1):
         energyB2 = np.sum(B2[0:nxn-1,:]**2)/2.*dx*dy
         energyB3 = np.sum(B3[0:nxn-1,0:nyn-1]**2)/2.*dx*dy
     
-    energyTot = energyP1 + energyP2 + energyE1 + energyE2 + energyE3 + energyB1 + energyB2 + energyB3
+    energyTot[it] = energyP1[it] + energyP2[it] + energyE1[it] + energyE2[it] + energyE3[it] + energyB1[it] + energyB2[it] + energyB3[it]
 
     momentumx = np.sum(unew[0:npart])
     momentumy = np.sum(vnew[0:npart])   
     momentumz = np.sum(wnew[0:npart])
-    momentumTot = momentumx + momentumy + momentumz
+    momentumTot[it] = momentumx + momentumy + momentumz
 
-    histEnergyP1.append(energyP1)
-    histEnergyP2.append(energyP2)
-    histEnergyE1.append(energyE1)
-    histEnergyE2.append(energyE2)
-    histEnergyE3.append(energyE3)
-    histEnergyB1.append(energyB1)
-    histEnergyB2.append(energyB2)
-    histEnergyB3.append(energyB3)
-    histEnergyTot.append(energyTot)
-    
-    histMomentumx.append(momentumx)
-    histMomentumy.append(momentumy)
-    histMomentumz.append(momentumz)
-    histMomentumTot.append(momentumTot)
+   #histEnergyP1.append(energyP1)
+   #histEnergyP2.append(energyP2)
+   #histEnergyE1.append(energyE1)
+   #histEnergyE2.append(energyE2)
+   #histEnergyE3.append(energyE3)
+   #histEnergyB1.append(energyB1)
+   #histEnergyB2.append(energyB2)
+   #histEnergyB3.append(energyB3)
+   #histEnergyTot.append(energyTot)
+   #
+   #histMomentumx.append(momentumx)
+   #histMomentumy.append(momentumy)
+   #histMomentumz.append(momentumz)
+   #histMomentumTot.append(momentumTot)
 
-    energyP[it] = histEnergyP1[it] + histEnergyP2[it]
-    energyE[it] = histEnergyE1[it] + histEnergyE2[it] + histEnergyE3[it]
-    energyB[it] = histEnergyB1[it] + histEnergyB2[it] + histEnergyB3[it]
+    energyP[it] = energyP1[it] + energyP2[it]
+    energyE[it] = energyE1[it] + energyE2[it] + energyE3[it]
+    energyB[it] = energyB1[it] + energyB2[it] + energyB3[it]
         
-    print('cycle',it,'energy =',histEnergyTot[it])
-    print('energyP1=',histEnergyP1[it],'energyP2=',histEnergyP2[it])
-    print('energyE1=',histEnergyE1[it],'energyE2=',histEnergyE2[it],'energyE3=',histEnergyE3[it])
-    print('energyB1=',histEnergyB1[it],'energyB2=',histEnergyB2[it],'energyB3=',histEnergyB3[it])
-    print('relative energy change=',(histEnergyTot[it]-histEnergyTot[0])/histEnergyTot[0])
-    print('momento totale= ', histMomentumTot[it])
+    print('cycle',it,'energy =',energyTot[it])
+    print('energyP1=',energyP1[it],'energyP2=',energyP2[it])
+    print('energyE1=',energyE1[it],'energyE2=',energyE2[it],'energyE3=',energyE3[it])
+    print('energyB1=',energyB1[it],'energyB2=',energyB2[it],'energyB3=',energyB3[it])
+    print('relative energy change=',(energyTot[it]-energyTot[0])/energyTot[0])
+    print('momento totale= ', momentumTot[it])
     print('')
 
     if plot_each_step == True:
@@ -1400,15 +1591,15 @@ for it in range(1,nt+1):
         plt.xlabel('x')
         plt.ylabel('y')
 
-        plt.subplot(2, 3, 5)
-        plt.plot((histEnergyTot-histEnergyTot[0])/histEnergyTot[0])#, label='U_tot')
+        #plt.subplot(2, 3, 5)
+        #plt.plot((histEnergyTot-histEnergyTot[0])/histEnergyTot[0])#, label='U_tot')
         #plt.plot(energyE+energyB)#, label='U_fields')
         #plt.plot(energyE)#, label='U_elect')
         #plt.plot(energyB)#, label = 'U_mag')
         #plt.plot(energyP, label='U_part')
-        plt.title('Energy evolution')
-        plt.xlabel('t')
-        plt.ylabel('E')
+        #plt.title('Energy evolution')
+        #plt.xlabel('t')
+        #plt.ylabel('E')
         #plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),shadow=True, ncol=2)
 
         plt.subplot(2, 3, 6)
@@ -1423,109 +1614,115 @@ for it in range(1,nt+1):
         if (it % every == 0) or (it == 1):
             plt.savefig(filename1, dpi=ndpi)
         plt.pause(0.00000001)
+    if (it % every == 0) or (it == 1):
+        '''
+        if nppc!=0:
+            myplot_particle_map(x, y)
+            filename1 = PATH1 + 'part_' + '%04d'%it + '.png'
+            plt.savefig(filename1, dpi=ndpi) 
 
-    if plot_dir == True:
-        if it == nt:
-            #if perturb:
-            #    myplot_func(histEnergyB,  title='Energy B', xlabel='t', ylabel='U_mag')
-            #    filename1 = PATH1 + '@energy_mag_' + '%04d'%it + '.png'
-            #    plt.savefig(filename1, dpi=ndpi)
-
-            #    myplot_func(histEnergyE,  title='Energy E', xlabel='t', ylabel='U_el')
-            #    filename1 = PATH1 + '@energy_elec_' + '%04d'%it + '.png'
-            #    plt.savefig(filename1, dpi=ndpi)
-            #else:
-            myplot_func((histEnergyTot-histEnergyTot[0])/histEnergyTot[0],
-                        title='Relative error on total energy', xlabel='t', ylabel='err(E)')
-            filename1 = PATH1 + '@error_rel_' + '%04d' % it + '.png'
+            myplot_phase_space(x, u, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
+            filename1 = PATH1 + 'phase_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
-            #np.abs(histEnergyTot[it-1]-histEnergyTot[it])/histEnergyTot[it]
-            myplot_func((histEnergyTot-histEnergyTot[it-1])/histEnergyTot[it-1], title='Total energy error', xlabel='t', ylabel='err(E)')
-            filename1 = PATH1 + '@error_' + '%04d' % it + '.png'
+            myplot_map(xc, yc, rho, title='rho', xlabel='x', ylabel='y')
+            filename1 = PATH1 + 'rho_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
+        '''
+        myplot_map(xn, yn, B3, title='B_3', xlabel='x', ylabel='y')
+        filename1 = PATH1 + 'B3_' + '%04d' % it + '.png'
+        plt.savefig(filename1, dpi=ndpi)
 
-            myplot_func(energyB,  title='Energy B', xlabel='t', ylabel='U_mag')
-            filename1 = PATH1 + '@energy_mag_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_func(energyE,  title='Energy E', xlabel='t', ylabel='U_el')
-            filename1 = PATH1 + '@energy_elec_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-            
-            myplot_func(energyP,  title='Energy Part.', xlabel='t', ylabel='U_part')
-            filename1 = PATH1 + '@energy_part_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_func(histMomentumTot, title='Momentum', xlabel='t', ylabel='p')
-            filename1 = PATH1 + '@momentum_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_func(divE_rho, title='div(E)-rho', xlabel='t', ylabel='div')
-            filename1 = PATH1 + '@div(E)-rho_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_func(divE, title='div(E)', xlabel='t', ylabel='div(E)')
-            filename1 = PATH1 + '@div(E)_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_func(divB, title='div(B)', xlabel='t', ylabel='div')
-            filename1 = PATH1 + '@div(B)_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_func(B1time,  title='B1 time evolution', xlabel='t', ylabel='B1')
-            filename1 = PATH1 + '@B1_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_func(B2time,  title='B2 time evolution', xlabel='t', ylabel='B2')
-            filename1 = PATH1 + '@B2_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_func(B3time,  title='B3 time evolution', xlabel='t', ylabel='B3')
-            filename1 = PATH1 + '@B3_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_func(E1time,  title='E1 time evolution', xlabel='t', ylabel='E1')
-            filename1 = PATH1 + '@E1_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_func(E2time,  title='E2 time evolution', xlabel='t', ylabel='E2')
-            filename1 = PATH1 + '@E2_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_func(E3time,  title='E3 time evolution', xlabel='t', ylabel='E3')
-            filename1 = PATH1 + '@E3_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-        
-        if (it % every == 0) or (it == 1):
-            '''
-            if nppc!=0:
-                myplot_particle_map(x, y)
-                filename1 = PATH1 + 'part_' + '%04d'%it + '.png'
-                plt.savefig(filename1, dpi=ndpi) 
-
-                myplot_phase_space(x, u, limx=(0, Lx), limy=(-2*V0x1, 2*V0x1), xlabel='x', ylabel='vx')
-                filename1 = PATH1 + 'phase_' + '%04d'%it + '.png'
-                plt.savefig(filename1, dpi=ndpi)
-
-                myplot_map(xc, yc, rho, title='rho', xlabel='x', ylabel='y')
-                filename1 = PATH1 + 'rho_' + '%04d'%it + '.png'
-                plt.savefig(filename1, dpi=ndpi)
-            '''
-            myplot_map(xn, yn, B3, title='B_3', xlabel='x', ylabel='y')
-            filename1 = PATH1 + 'B3_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-
-            myplot_map(xLR, yLR, E1, title='E_1', xlabel='x', ylabel='y')
-            filename1 = PATH1 + 'E1_' + '%04d'%it + '.png'
-            plt.savefig(filename1, dpi=ndpi)
-                    
+        myplot_map(xLR, yLR, E1, title='E_1', xlabel='x', ylabel='y')
+        filename1 = PATH1 + 'E1_' + '%04d' % it + '.png'
+        plt.savefig(filename1, dpi=ndpi)
     if plot_data == True:
         f = open("iPiC_2D3V_cov_yee.dat", "a")
-        print(it, np.sum(E1), np.sum(E2), np.sum(E3), np.sum(B1), np.sum(B2), np.sum(B3),\
-                  energyE1, energyE2, energyE3, energyB1, energyB2, energyB3, energyTot, energyP1, energyP2,\
-                  divE[it], divB[it], file=f)
+        print(it, np.sum(E1), np.sum(E2), np.sum(E3), np.sum(B1), np.sum(B2), np.sum(B3), \
+              energyE1, energyE2, energyE3, energyB1, energyB2, energyB3, energyTot, energyP1, energyP2, \
+              divE[it], divB[it], file=f)
         f.close()
 
+
 stop = time.time()
+if plot_dir == True:
+    #if perturb:
+    #    myplot_func(histEnergyB,  title='Energy B', xlabel='t', ylabel='U_mag')
+    #    filename1 = PATH1 + '@energy_mag_' + '%04d'%it + '.png'
+    #    plt.savefig(filename1, dpi=ndpi)
+
+    #    myplot_func(histEnergyE,  title='Energy E', xlabel='t', ylabel='U_el')
+    #    filename1 = PATH1 + '@energy_elec_' + '%04d'%it + '.png'
+    #    plt.savefig(filename1, dpi=ndpi)
+    #else:
+    myplot_func((energyTot-energyTot[0])/energyTot[0], title='Relative error on total energy', xlabel='t', ylabel='err(E)')
+    filename1 = PATH1 + '@error_rel_' + '%04d' % it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func((energyTot-energyTot[0])/energyTot[0], title='Relative error on total energy', xlabel='t', ylabel='err(E)')
+    filename1 = PATH1 + '@error_rel_' + '%04d' % it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    ##np.abs(histEnergyTot[it-1]-histEnergyTot[it])/histEnergyTot[it]
+    #myplot_func((histEnergyTot-histEnergyTot[it-1])/histEnergyTot[it-1],
+    #            title='Total energy error', xlabel='t', ylabel='err(E)')
+    #filename1 = PATH1 + '@error_' + '%04d' % it + '.png'
+    #plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(energyB,  title='Energy B', xlabel='t', ylabel='U_mag')
+    filename1 = PATH1 + '@energy_mag_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(energyE,  title='Energy E', xlabel='t', ylabel='U_el')
+    filename1 = PATH1 + '@energy_elec_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(energyP,  title='Energy Part.', xlabel='t', ylabel='U_part')
+    filename1 = PATH1 + '@energy_part_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(energyTot, title='Total Energy', xlabel='t', ylabel='U_Tot')
+    filename1 = PATH1 + '@energy_total_' + '%04d' % it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(momentumTot, title='Momentum', xlabel='t', ylabel='p')
+    filename1 = PATH1 + '@momentum_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(divE_rho, title='div(E)-rho', xlabel='t', ylabel='div')
+    filename1 = PATH1 + '@div(E)-rho_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(divE, title='div(E)', xlabel='t', ylabel='div(E)')
+    filename1 = PATH1 + '@div(E)_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(divB, title='div(B)', xlabel='t', ylabel='div')
+    filename1 = PATH1 + '@div(B)_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(B1time,  title='B1 time evolution', xlabel='t', ylabel='B1')
+    filename1 = PATH1 + '@B1_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(B2time,  title='B2 time evolution', xlabel='t', ylabel='B2')
+    filename1 = PATH1 + '@B2_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(B3time,  title='B3 time evolution', xlabel='t', ylabel='B3')
+    filename1 = PATH1 + '@B3_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(E1time,  title='E1 time evolution', xlabel='t', ylabel='E1')
+    filename1 = PATH1 + '@E1_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(E2time,  title='E2 time evolution', xlabel='t', ylabel='E2')
+    filename1 = PATH1 + '@E2_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
+    myplot_func(E3time,  title='E3 time evolution', xlabel='t', ylabel='E3')
+    filename1 = PATH1 + '@E3_' + '%04d'%it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
+
 print('Total cpu time:', stop-start)
