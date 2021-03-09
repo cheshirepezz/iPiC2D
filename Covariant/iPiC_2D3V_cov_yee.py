@@ -6,6 +6,8 @@ Copyright 2020 KULeuven
 MIT License.
 """
 
+#TODO: Build geom needs to be fixed bc we currently use wrong map
+
 import numpy as np
 from scipy.optimize import newton_krylov
 from numpy import cosh, zeros_like, mgrid, zeros, ones
@@ -18,8 +20,8 @@ PATH1 = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/figures/'
 # metric flag
 perturb = True              # perturbed metric tensor
 # method flags
-NK_method = False
-Picard = True
+NK_method = True
+Picard = False
 # physics flags
 electron_and_ion = True     # background of ions when QM1=QM2=-1
 stable_plasma = True        # stable plasma set up
@@ -160,6 +162,12 @@ E3time = zeros(nt+1, np.float64)
 B1time = zeros(nt+1, np.float64)
 B2time = zeros(nt+1, np.float64)
 B3time = zeros(nt+1, np.float64)
+
+# Energy
+energyP = zeros(nt+1, np.float64)  # particles
+energyE = zeros(nt+1, np.float64)  # E field
+energyB = zeros(nt+1, np.float64)  # B field
+err_en = zeros(nt+1, np.float64)  # energy tot error
 
 if nppc==0: 
     # delta perturbation of magnetic field
@@ -384,13 +392,9 @@ divE_rho = zeros(nt+1, np.float64)
 # defined on grid n: 
 divB = zeros(nt+1, np.float64)
 
-# Energy
-energyP = zeros(nt+1, np.float64) # particles
-energyE = zeros(nt+1, np.float64) # E field 
-energyB = zeros(nt+1, np.float64) # B field
-
 if log_file == True:
     f = open(PATH1 + 'log_file.txt', 'w')
+    print('iPiC_2D3V_cov_yee.py', file=f)
     print('* METRIC:', file=f)
     print('- perturbation: ', perturb, file=f)
     print('* METHOD:', file=f)
@@ -614,55 +618,50 @@ def define_geometry():
             g23_N[i, j] = jacobian_N[0, 1] * jacobian_N[0, 2] + jacobian_N[1, 1] * jacobian_N[1, 2] + jacobian_N[2, 1] * jacobian_N[2, 2]
             g33_N[i, j] = jacobian_N[0, 2] * jacobian_N[0, 2] + jacobian_N[1, 2] * jacobian_N[1, 2] + jacobian_N[2, 2] * jacobian_N[2, 2]
 
-def physic_to_logic(x, y, z, fieldtype):
-    '''To convert fields from physical coordinate (x, y, z) to logigal coordinate (xi, eta, zeta)
+def cartesian_to_general(cartx, carty, cartz, fieldtype):
+    ''' To convert fields from Cartesian coord. (x, y, z) to General coord. (xi, eta, zeta)
     fieltype=='E' or 'J': input -> LR,UD,c, output -> LR,UD,c
     fieltype=='B':        input -> UD,LR,n, output -> UD,LR,n
     '''
-
     if (fieldtype == 'E') or (fieldtype == 'J'):
-      xi = J11_LR * x + J11_LR * avg(avg(y, 'UD2C'), 'C2LR')+ J11_LR * avg(z, 'C2LR')
-      eta = J22_UD * avg(avg(x, 'LR2C'), 'C2UD') + J22_UD * y + J22_UD * avg(z, 'C2UD')
-      zeta = J33_C * avg(x, 'LR2C') + J33_C * avg(y, 'UD2C') + J33_C * z
+      genx1 = J11_LR * cartx + J12_LR * avg(avg(carty, 'UD2C'), 'C2LR')+ J13_LR * avg(cartz, 'C2LR')
+      genx2 = J21_UD * avg(avg(cartx, 'LR2C'), 'C2UD') + J22_UD * carty + J23_UD * avg(cartz, 'C2UD')
+      genx3 = J31_C * avg(cartx, 'LR2C') + J32_C * avg(carty, 'UD2C') + J33_C * cartz
     elif fieldtype == 'B':
-      xi = J11_UD * x + J11_UD * avg(avg(y, 'LR2C'), 'C2UD') + J11_UD * avg(z, 'N2UD')
-      eta = J22_LR * avg(avg(x, 'UD2C'), 'C2LR') + J22_LR * y + J22_LR * avg(z, 'N2LR')
-      zeta = J33_N * avg(x, 'UD2N') + J33_N * avg(y, 'LR2N') + J33_N * z
+      genx1 = J11_UD * cartx + J12_UD * avg(avg(carty, 'LR2C'), 'C2UD') + J13_UD * avg(cartz, 'N2UD')
+      genx2 = J21_LR * avg(avg(cartx, 'UD2C'), 'C2LR') + J22_LR * carty + J23_LR * avg(cartz, 'N2LR')
+      genx3 = J31_N * avg(cartx, 'UD2N') + J32_N * avg(carty, 'LR2N') + J33_N * cartz
     
-    return xi, eta, zeta
+    return genx1, genx2, genx3
 
-def logic_to_physic(xi, eta, zeta, fieldtype):
-    '''To convert fields from logical coordinate (xi, eta, zeta) to physical coordinate (x, y, z)
+def general_to_cartesian(genx1, genx2, genx3, fieldtype):
+    ''' To convert fields from General coord. (xi, eta, zeta) to Cartesian coord (x, y, z)
     fieltype=='E' or 'J': input -> LR,UD,c, output -> LR,UD,c
     fieltype=='B':        input -> UD,LR,n, output -> UD,LR,n
     '''
-    
     if (fieldtype == 'E') or (fieldtype == 'J'):
-      x = j11_LR * xi + j11_LR * avg(avg(eta, 'UD2C'), 'C2LR')+ j11_LR * avg(zeta, 'C2LR')
-      y = j22_UD * avg(avg(xi, 'LR2C'), 'C2UD') + j22_UD * eta + j22_UD * avg(zeta, 'C2UD')
-      z = j33_C * avg(xi, 'LR2C') + j33_C * avg(eta, 'UD2C') + j33_C * zeta
+      cartx = j11_LR * genx1 + j12_LR * avg(avg(genx2, 'UD2C'), 'C2LR')+ j13_LR * avg(genx3, 'C2LR')
+      carty = j21_UD * avg(avg(genx1, 'LR2C'), 'C2UD') + j22_UD * genx2 + j23_UD * avg(genx3, 'C2UD')
+      cartz = j31_C * avg(genx1, 'LR2C') + j32_C * avg(genx2, 'UD2C') + j33_C * genx3
     elif fieldtype == 'B':
-      x = j11_UD * xi + j11_UD * avg(avg(eta, 'LR2C'), 'C2UD') + j11_UD * avg(zeta, 'N2UD')
-      y = j22_LR * avg(avg(xi, 'UD2C'), 'C2LR') + j22_LR * eta + j22_LR * avg(zeta, 'N2LR')
-      z = j33_N * avg(xi, 'UD2N') + j33_N * avg(eta, 'LR2N') + j33_N * zeta
+      cartx = j11_UD * genx1 + j12_UD * avg(avg(genx2, 'LR2C'), 'C2UD') + j13_UD * avg(genx3, 'N2UD')
+      carty = j21_LR * avg(avg(genx1, 'UD2C'), 'C2LR') + j22_LR * genx2 + j23_LR * avg(genx3, 'N2LR')
+      cartz = j31_N * avg(genx1, 'UD2N') + j32_N * avg(genx2, 'LR2N') + j33_N * genx3
     
-    return x, y, z
+    return cartx, carty, cartz
 
-#def base_tangent_vector(dx1, dx2, gridtype):
-#    '''To convert base vector from logical coordinate (xi, eta, zeta) to physical coordinate (x, y, z)
-#    '''
-#    if gridtype == N:
-#        dx = j11_N * dx1 + j12_N * dx2
-#        dy = j21_N * dx1 + j22_N * dx2
-#    return dx, dy
+def cartesian_to_general_particle(cartx, carty):
+    '''To convert the particles position from Cartesian coord. (x, y, z) to General coord. (xi, eta, zeta)
+    '''
+    genx1 = cartx + eps*np.sin(2*np.pi*cartx/Lx)*np.sin(2*np.pi*carty/Ly)
+    genx2 = carty + eps*np.sin(2*np.pi*cartx/Lx)*np.sin(2*np.pi*carty/Ly)
 
-def physic_to_logic_particle(xi, eta):
-    ''' To convert particles position from physical coordinate (x, y, z) to logigal coordinate (xi, eta, zeta)
-    '''    
-    x = xi + eps*np.sin(2*np.pi*xi/Lx)*np.sin(2*np.pi*eta/Ly)
-    y = eta + eps*np.sin(2*np.pi*xi/Lx)*np.sin(2*np.pi*eta/Ly)
+    return genx1, genx2
 
-    return x, y
+def norm(vecx, vecy, vecz):
+    '''To calculate the norm of a covariant/contravariant/ordinary vector
+    '''
+    return np.sqrt(vecx**2 + vecy**2 + vecz**2)
 
 def dirder(field, dertype):
     ''' To take the directional derivative of a quantity
@@ -800,15 +799,15 @@ def curl(fieldx, fieldy, fieldz, fieldtype):
     fieltype=='B': input -> UD,LR,n, output -> LR,UD,c
     '''
     if fieldtype == 'E':
-      curl_x =   (dirder(g31_C * avg(fieldx, 'LR2C'), 'C2UD') + dirder(g32_C * avg(fieldy, 'UD2C'), 'C2UD') + dirder(g33_C * fieldz, 'C2UD'))/J_UD*np.sqrt(g11_UD)
-      curl_y = - (dirder(g31_C * avg(fieldx, 'LR2C'), 'C2LR') + dirder(g32_C * avg(fieldy, 'UD2C'), 'C2LR') + dirder(g33_C * fieldz, 'C2LR'))/J_LR*np.sqrt(g22_LR)
-      curl_z = (dirder(g21_UD * avg(avg(fieldx, 'LR2C'),'C2UD'), 'UD2N') + dirder(g22_UD * fieldy, 'UD2N') + dirder(g13_UD * avg(fieldz, 'C2UD'), 'UD2N')
-              - dirder(g11_LR * fieldx, 'LR2N') + dirder(g12_LR * avg(avg(fieldy, 'UD2C'), 'C2LR'), 'LR2N') + dirder(g13_LR * avg(fieldz, 'C2LR'), 'LR2N'))/J_N*np.sqrt(g33_N)
+      curl_x =   dirder((g31_C * avg(fieldx, 'LR2C') + g32_C * avg(fieldy, 'UD2C') + g33_C * fieldz)/norm(J31_C, J32_C, J33_C), 'C2UD')/J_UD/norm(J11_UD, J21_UD, J31_UD)
+      curl_y = - dirder((g31_C * avg(fieldx, 'LR2C') + g32_C * avg(fieldy, 'UD2C') + g33_C * fieldz)/norm(J31_C, J32_C, J33_C), 'C2LR')/J_LR/norm(J12_LR, J22_LR, J32_LR)
+      curl_z = dirder((g21_UD * avg(avg(fieldx, 'LR2C'),'C2UD') +g22_UD * fieldy + g23_UD * avg(fieldz, 'C2UD'))/norm(J21_UD, J22_UD, J23_UD), 'UD2N')/J_N/norm(J13_N, J23_N, J33_N)\
+              - dirder((g11_LR * fieldx + g12_LR * avg(avg(fieldy, 'UD2C'), 'C2LR') + g13_LR * avg(fieldz, 'C2LR'))/norm(J11_LR, J12_LR, J13_LR), 'LR2N')/J_N/norm(J13_N, J23_N, J33_N)
     elif fieldtype == 'B':
-      curl_x =   (dirder(g31_N * avg(fieldx, 'UD2N'), 'N2LR') + dirder(g32_N * avg(fieldy, 'LR2N'), 'N2LR') + dirder(g33_N * fieldz, 'N2LR'))/J_LR*np.sqrt(g11_LR)
-      curl_y = - (dirder(g31_N * avg(fieldx, 'UD2N'), 'N2UD') + dirder(g32_N * avg(fieldy, 'LR2N'), 'N2UD') + dirder(g33_N * fieldz, 'N2UD'))/J_UD*np.sqrt(g22_UD)
-      curl_z = (dirder(g21_LR * avg(avg(fieldx, 'UD2N'), 'N2LR'), 'LR2C') + dirder(g22_LR * fieldy, 'LR2C') + dirder(J_LR * g13_LR * avg(fieldz, 'N2LR'), 'LR2C')
-              - dirder(g11_UD * fieldx, 'UD2C') + dirder(g12_UD * avg(avg(fieldy, 'LR2N'), 'N2UD'), 'UD2C') + dirder(g13_UD * avg(fieldz, 'N2UD'), 'UD2C'))/J_C*np.sqrt(g33_C)
+      curl_x = dirder((g31_N * avg(fieldx, 'UD2N') + g32_N * avg(fieldy, 'LR2N') + J33_N * fieldz)/norm(J31_N, J32_N, J33_N), 'N2LR')/J_LR/norm(J11_LR, J21_LR, J31_LR)
+      curl_y = - dirder((g31_N * avg(fieldx, 'UD2N') + g32_N * avg(fieldy, 'LR2N') + g33_N * fieldz)/norm(J31_N, J32_N, J33_N), 'N2UD')/J_UD/norm(J12_UD, J22_UD, J32_UD)
+      curl_z = dirder((g21_LR * avg(avg(fieldx, 'UD2N'), 'N2LR') + g22_LR * fieldy + g23_LR * avg(fieldz, 'N2LR'))/norm(J21_LR, J22_LR, J23_LR), 'LR2C')/J_C/norm(J13_C, J23_C, J33_C)\
+             - dirder((g11_UD * fieldx + g12_UD * avg(avg(fieldy, 'LR2N'), 'N2UD') + g13_UD * avg(fieldz, 'N2UD'))/norm(J11_UD, J12_UD, J13_UD), 'UD2C')/J_C/norm(J13_C, J23_C, J33_C)
     return curl_x, curl_y, curl_z
 
 def div(fieldx, fieldy, fieldz, fieldtype):
@@ -817,10 +816,10 @@ def div(fieldx, fieldy, fieldz, fieldtype):
     fieltype=='B': input -> UD,LR,n, output -> n,n,n
     '''
     if fieldtype == 'E':
-        div = (dirder(J_LR*fieldx, 'LR2C') + dirder(J_UD*fieldy, 'UD2C'))/J_C
+        div = (dirder(J_LR*fieldx/norm(J11_LR, J21_LR, J31_LR), 'LR2C') + dirder(J_UD*fieldy/norm(J12_UD, J22_UD, J32_UD), 'UD2C'))/J_C
 
     elif fieldtype == 'B':
-        div = (dirder(J_UD*fieldx, 'UD2N') + dirder(J_LR*fieldy, 'LR2N'))/J_N
+        div = (dirder(J_UD*fieldx/norm(J11_UD, J21_UD, J31_UD), 'UD2N') + dirder(J_LR*fieldy/norm(J12_LR, J22_LR, J32_LR), 'LR2N'))/J_N
 
     return div
 
@@ -889,13 +888,13 @@ def residual(xkrylov):
     ybar = ybar%Ly
     # conversion to general geom.
     if perturb:
-        xgenbar, ygenbar = physic_to_logic_particle(xbar, ybar)
+        xgenbar, ygenbar = cartesian_to_general_particle(xbar, ybar)
     else:
         xgenbar, ygenbar = xbar, ybar
     
     Jx, Jy, Jz = particle_to_grid_J(xgenbar,ygenbar,ubar/gbar,vbar/gbar,wbar/gbar,q)
     # J1:           t = n+1/2 -> t = n+1/2  (=curlB1)
-    J1, J2, J3 = physic_to_logic(Jx, Jy, Jz, 'J')
+    J1, J2, J3 = cartesian_to_general(Jx, Jy, Jz, 'J')
 
     # E1:           t = n+1/2 -> t = n
     # E1new:        t = n+3/2 -> t = n+1
@@ -924,9 +923,9 @@ def residual(xkrylov):
     resE3 = E3new - E3 - dt*curlB3 + dt*J3
 
     # Ex:           t = n -> t = n+1/2  (=E1bar)
-    Ex, Ey, Ez = logic_to_physic(E1bar, E2bar, E3bar, 'E')
+    Ex, Ey, Ez = general_to_cartesian(E1bar, E2bar, E3bar, 'E')
     # Bx:           t = n+1/2 -> t = n+1/2  (=B1bar)
-    Bx, By, Bz = logic_to_physic(B1bar, B2bar, B3bar, 'B')
+    Bx, By, Bz = general_to_cartesian(B1bar, B2bar, B3bar, 'B')
     
     # Exp           t = n -> t = n+1/2  (=E1bar)
     Exp = grid_to_particle(xgenbar,ygenbar,Ex,'LR')
@@ -1095,15 +1094,13 @@ def particle_to_grid_J(xk, yk, uk, vk, wk, qk):
 
 define_geometry()
 
-#base_tangent_vector()
-
 if perturb:
-    xgen, ygen = physic_to_logic_particle(x, y)
+    xgen, ygen = cartesian_to_general_particle(x, y)
 else:
     xgen, ygen = x, y
     
 Jx, Jy, Jz = particle_to_grid_J(xgen, ygen, u, v, w, q)
-J1, J2, J3 = physic_to_logic(Jx, Jy, Jz, 'J')
+J1, J2, J3 = cartesian_to_general(Jx, Jy, Jz, 'J')
 
 if relativistic:
     histEnergyP1 = [np.sum((g[0:npart1]-1.)*abs(q[0:npart1]/QM[0:npart1]))]
@@ -1152,7 +1149,7 @@ histMomentumTot = [histMomentumx[0] + histMomentumy[0] + histMomentumz[0]]
 energyP[0] = histEnergyP1[0] + histEnergyP2[0]
 energyE[0] = histEnergyE1[0] + histEnergyE2[0] + histEnergyE3[0]
 energyB[0] = histEnergyB1[0] + histEnergyB2[0] + histEnergyB3[0]
-
+ 
 print('cycle 0, energy=',histEnergyTot[0])
 print('energyP1=',histEnergyP1[0],'energyP2=',histEnergyP2[0])
 print('energyEx=',histEnergyE1[0],'energyEy=',histEnergyE2[0],'energyEz=',histEnergyE3[0])
@@ -1160,7 +1157,7 @@ print('energyBx=',histEnergyB1[0],'energyBy=',histEnergyB2[0],'energyBz=',histEn
 print('Momentumx=',histMomentumx[0],'Momentumy=',histMomentumy[0],'Momentumz=',histMomentumz[0])
   
 if perturb:
-    xgen, ygen = physic_to_logic_particle(x, y)
+    xgen, ygen = cartesian_to_general_particle(x, y)
 else:
     xgen, ygen = x, y
 
@@ -1201,7 +1198,7 @@ for it in range(1,nt+1):
         # The following is python's NK methods
         #guess = zeros(2*nxn*nyc+2*nxc*nyn+nxc*nxc+nxn*nxn+3*2*part,np.float64)
         guess = phys_to_krylov(E1, E2, E3, u, v, w)
-        sol = newton_krylov(residual, guess, method='lgmres', verbose=1, f_tol=1e-14)#, f_rtol=1e-7)
+        sol = newton_krylov(residual, guess, method='lgmres', verbose=1, f_tol=1e-18)#, f_rtol=1e-7)
         print('Residual: %g' % abs(residual(sol)).max())
     elif Picard:
         # The following is a Picard iteration
@@ -1253,7 +1250,7 @@ for it in range(1,nt+1):
     B3 = B3 - dt*curlE3
     
     if perturb:
-        xgen, ygen = physic_to_logic_particle(x, y)
+        xgen, ygen = cartesian_to_general_particle(x, y)
     else:
         xgen, ygen = x, y
 
@@ -1336,7 +1333,9 @@ for it in range(1,nt+1):
     energyP[it] = histEnergyP1[it] + histEnergyP2[it]
     energyE[it] = histEnergyE1[it] + histEnergyE2[it] + histEnergyE3[it]
     energyB[it] = histEnergyB1[it] + histEnergyB2[it] + histEnergyB3[it]
-        
+    
+    err_en[it] = (histEnergyTot[it] - histEnergyTot[it-1])/histEnergyTot[it-1]
+
     print('cycle',it,'energy =',histEnergyTot[it])
     print('energyP1=',histEnergyP1[it],'energyP2=',histEnergyP2[it])
     print('energyE1=',histEnergyE1[it],'energyE2=',histEnergyE2[it],'energyE3=',histEnergyE3[it])
@@ -1426,23 +1425,16 @@ for it in range(1,nt+1):
 
     if plot_dir == True:
         if it == nt:
-            #if perturb:
-            #    myplot_func(histEnergyB,  title='Energy B', xlabel='t', ylabel='U_mag')
-            #    filename1 = PATH1 + '@energy_mag_' + '%04d'%it + '.png'
-            #    plt.savefig(filename1, dpi=ndpi)
-
-            #    myplot_func(histEnergyE,  title='Energy E', xlabel='t', ylabel='U_el')
-            #    filename1 = PATH1 + '@energy_elec_' + '%04d'%it + '.png'
-            #    plt.savefig(filename1, dpi=ndpi)
-            #else:
-            myplot_func((histEnergyTot-histEnergyTot[0])/histEnergyTot[0],
-                        title='Relative error on total energy', xlabel='t', ylabel='err(E)')
-            filename1 = PATH1 + '@error_rel_' + '%04d' % it + '.png'
+            myplot_func(histEnergyTot,title='Total energy', xlabel='t', ylabel='U_Tot')
+            filename1 = PATH1 + '@energy_tot_' + '%04d' % it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
-            #np.abs(histEnergyTot[it-1]-histEnergyTot[it])/histEnergyTot[it]
-            myplot_func((histEnergyTot-histEnergyTot[it-1])/histEnergyTot[it-1], title='Total energy error', xlabel='t', ylabel='err(E)')
-            filename1 = PATH1 + '@error_' + '%04d' % it + '.png'
+            myplot_func((histEnergyTot-histEnergyTot[0])/histEnergyTot[0],title='E[t]–E[0]/E[0]', xlabel='t', ylabel='err(E)')
+            filename1 = PATH1 + '@error_rel_E[0]_' + '%04d' % it + '.png'
+            plt.savefig(filename1, dpi=ndpi)
+
+            myplot_func(err_en, title='E[t]–E[t-1]/E[t-1]', xlabel='t', ylabel='err(E)')
+            filename1 = PATH1 + '@error_rel_E[t-1]_' + '%04d' % it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
             myplot_func(energyB,  title='Energy B', xlabel='t', ylabel='U_mag')
