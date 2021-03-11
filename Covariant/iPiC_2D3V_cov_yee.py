@@ -20,8 +20,8 @@ PATH1 = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/figures/'
 # metric flag
 perturb = True              # perturbed metric tensor
 # method flags
-NK_method = True
-Picard = False
+NK_method = False
+Picard = True
 # physics flags
 electron_and_ion = True     # background of ions when QM1=QM2=-1
 stable_plasma = True        # stable plasma set up
@@ -41,37 +41,37 @@ nxn, nyn = nxc+1, nyc+1
 Lx, Ly = 10., 10.
 dx, dy = Lx/nxc, Ly/nyc
 dt = 0.05
-nt = 200
+nt = 400
 
-ndpi = 100  # number of dpi per img (stay low 100 for monitoring purpose!)
-every = 20    # how often to plot
-eps = 0.2    # amplitude of the pertutbation
-n = 1.      # mode of oscillation
-B0 = 0.01   # B field perturbation
+ndpi = 100                  # number of dpi per img (stay low 100 for monitoring purpose!)
+every = 200                 # how often to plot
+eps = 0.2                   # amplitude of the pertutbation
+n = 1.                      # mode of oscillation
+B0 = 0.01                   # B field perturbation
 
 # Constaint: nppc must be a squerable number (4, 16, 64) because particles are 
 #            spread over a squared grid
-nppc = 0    # number particles per cell per species
-V0 = 1.      # stream velocity magnitude 
-alpha = 0.1  # attenuation of VT respect V0
+nppc = 0                    # number particles per cell per species
+V0 = 1.                     # stream velocity magnitude 
+alpha = 0.1                 # attenuation of VT respect V0
 
 # Species 1
 npart1 = nx * ny * nppc
-WP1 = 1. # Plasma frequency
-QM1 = -1. # Charge/mass ratio
-V0x1 = V0 # Stream velocity
-V0y1 = V0 # Stream velocity
-V0z1 = V0 # Stream velocity
-VT1 = alpha*V0 # thermal velocity
+WP1 = 1.                    # plasma frequency
+QM1 = -1.                   # charge/mass ratio
+V0x1 = V0                   # stream velocity
+V0y1 = V0                   # stream velocity
+V0z1 = V0                   # stream velocity
+VT1 = alpha*V0              # thermal velocity
 
 # Species 2
 npart2 = npart1
-WP2 = 1. # Plasma frequency
-QM2 = -1. # Charge/mass ratio
-V0x2 = V0 # Stream velocity
-V0y2 = V0 # Stream velocity
-V0z2 = V0 # Stream velocity
-VT2 = alpha*V0 # thermal velocity
+WP2 = 1.                    # Plasma frequency
+QM2 = -1.                   # Charge/mass ratio
+V0x2 = V0                   # Stream velocity
+V0y2 = V0                   # Stream velocity
+V0z2 = V0                   # Stream velocity
+VT2 = alpha*V0              # thermal velocity
 
 npart = npart1 + npart2
 QM = zeros(npart, np.float64)
@@ -82,6 +82,7 @@ QM[npart1:npart] = QM2
 np.random.seed(1)
 
 if nppc==0:
+    # only fields
     dxp = 0.
     dyp = 0.
 else:
@@ -143,7 +144,7 @@ xc, yc = mgrid[dx/2.:Lx-dx/2.:(nxc*1j), dy/2.:Ly-dy/2.:(nyc*1j)]
 # grid of corners n
 xn, yn = mgrid[0.:Lx:(nxn*1j), 0.:Ly:(nyn*1j)]
 
-# INIT FIELDS:fields live in logic space
+# INIT FIELDS: fields live in logic space
 # defined on grid LR:        Ex, Jx, By
 # defined on grid UD:        Ey, Jy, Bx
 # defined on grid centres c: Ez, Jz, rho
@@ -155,7 +156,14 @@ E3 = zeros(np.shape(xc),np.float64)
 B1 = zeros(np.shape(xUD),np.float64)
 B2 = zeros(np.shape(xLR),np.float64)
 B3 = zeros(np.shape(xn),np.float64)
-#time series
+
+if nppc == 0:
+    # delta perturbation of magnetic field
+    #B3[int((nx)/2), int((ny)/2)] = B0
+    # double sinusoidal perturbation
+    B3 = B0 * np.sin(2.*np.pi*n*xn/Lx)*np.sin(2.*np.pi*n*yn/Ly)
+
+# Time series
 E1time = zeros(nt+1, np.float64)
 E2time = zeros(nt+1, np.float64)
 E3time = zeros(nt+1, np.float64)
@@ -164,19 +172,21 @@ B2time = zeros(nt+1, np.float64)
 B3time = zeros(nt+1, np.float64)
 
 # Energy
-energyP = zeros(nt+1, np.float64)  # particles
-energyE = zeros(nt+1, np.float64)  # E field
-energyB = zeros(nt+1, np.float64)  # B field
+energyP = zeros(nt+1, np.float64) # particles
+energyE = zeros(nt+1, np.float64) # E field
+energyB = zeros(nt+1, np.float64) # B field
 err_en = zeros(nt+1, np.float64)  # energy tot error
 
-if nppc==0: 
-    # delta perturbation of magnetic field
-    #B3[int((nx)/2), int((ny)/2)] = B0
-    # double sinusoidal perturbation
-    B3 = B0 * np.sin(2.*np.pi*n*xn/Lx)*np.sin(2.*np.pi*n*yn/Ly)
-
+# CHARGE DENSITY
 rho = zeros(np.shape(xc), np.float64)
 rho_ion = zeros(np.shape(xc), np.float64)
+
+# DIVERGENCE
+# defined on grid c:
+divE = zeros(nt+1, np.float64)
+divE_rho = zeros(nt+1, np.float64)
+# defined on grid n:
+divB = zeros(nt+1, np.float64)
 
 # INIT JACOBIAN MATRIX
 # change from the physical coordinate to the (xi, eta, zeta) to the logical ones (x, y, z)
@@ -185,15 +195,13 @@ rho_ion = zeros(np.shape(xc), np.float64)
 # eta  = y + eps * sin(2*pi*x/Lx) * sin(2*pi*eta/Lx)
 # zeta = z
 
-# defined on grid LR:        (j11e, j21e, j31e)E1, J1
-#                            (j11b, j21b, j31b)B1
-# defined on grid UD:        (J12e, J22e, J32e)E2, J2
-#                            (J12b, J22b, J32b)B2
-# defined on grid centres c: (J13e, J23e, J33e)E3, J3
-# defined on grid nodes n:   (J13b, J23b, J33b)B3
+# defined on grid LR:        (j11, j21, j31) E1, J1, B1                         
+# defined on grid UD:        (J12, J22, J32) E2, J2, B2
+# defined on grid centres c: (J13, J23, J33) E3, J3, B3
+# defined on grid nodes n:   (J13, J23, J33) B3
 
 if perturb:
-    # simusoidal perturbation map
+    # sinusoidal perturbation map
     J11_LR = 1. + 2.*np.pi*eps*np.cos(2.*np.pi*xLR/Lx)*np.sin(2.*np.pi*yLR/Ly)/Lx
     J12_LR = 2.*np.pi*eps*np.sin(2.*np.pi*xLR/Lx)*np.cos(2.*np.pi*yLR/Ly)/Ly
     J13_LR = np.zeros(np.shape(xLR), np.float64)
@@ -283,12 +291,10 @@ J_C = np.zeros(np.shape(xc), np.float64)
 J_N = np.zeros(np.shape(xn), np.float64)
 
 # DEFINE INVERSE JACOBIAN MATRIX
-# defined on grid LR:        (j11, j21, j31)E1, J1
-#                            (j11, j21, j31)B1
-# defined on grid UD:        (j12, j22, j32)E2, J2
-#                            (j12, j22, j32)B2
-# defined on grid centres c: (j12, j23, j33)E3, J3
-# defined on grid nodes n:   (j12, j23, j33)B3
+
+# defined on grid LR:        (j11, j21, j31) E1, J1, B1
+# defined on grid UD:        (j12, j22, j32) E2, J2, B2
+# defined on grid centres c: (j12, j23, j33) E3, J3, B3
 
 j11_LR = np.zeros(np.shape(xLR), np.float64)
 j12_LR = np.zeros(np.shape(xLR), np.float64)
@@ -330,7 +336,7 @@ j31_N = np.zeros(np.shape(xn), np.float64)
 j32_N = np.zeros(np.shape(xn), np.float64)
 j33_N = np.zeros(np.shape(xn), np.float64)
 
-# INIT IVERSE JACOBIAN DETERMINANT
+# INIT INVERSE JACOBIAN DETERMINANT
 
 j_LR = np.zeros(np.shape(xLR), np.float64)
 j_UD = np.zeros(np.shape(xUD), np.float64)
@@ -338,12 +344,11 @@ j_C = np.zeros(np.shape(xc), np.float64)
 j_N = np.zeros(np.shape(xn), np.float64)
 
 # INIT METRIC TENSOR
-# defined on grid LR:        (g11, g21, g31)E1
-#                            (g11, g21, g31)B1
-# defined on grid UD:        (g12, g22, g32)E2
-#                            (g12, g22, g32)B2
-# defined on grid centres c: (g12, g23, g33)E3
-# defined on grid corners n: (g12, g23, g33)B3
+
+# defined on grid LR:        (g11, g21, g31) E1, B1
+# defined on grid UD:        (g12, g22, g32) E2, B2
+# defined on grid centres c: (g12, g23, g33) E3
+# defined on grid corners n: (g12, g23, g33) B3
 
 g11_LR = np.zeros(np.shape(xLR), np.float64)
 g12_LR = np.zeros(np.shape(xLR), np.float64)
@@ -385,24 +390,18 @@ g31_N = np.zeros(np.shape(xn), np.float64)
 g32_N = np.zeros(np.shape(xn), np.float64)
 g33_N = np.zeros(np.shape(xn), np.float64)
 
-# Divergence
-# defined on grid c:
-divE = zeros(nt+1, np.float64)
-divE_rho = zeros(nt+1, np.float64)
-# defined on grid n: 
-divB = zeros(nt+1, np.float64)
-
 if log_file == True:
     f = open(PATH1 + 'log_file.txt', 'w')
     print('iPiC_2D3V_cov_yee.py', file=f)
     print('* METRIC:', file=f)
     print('- perturbation: ', perturb, file=f)
+    print('- perturbation amplitude eps_g: ', eps, file=f)
     print('* METHOD:', file=f)
     print('- NK method: ', NK_method, file=f)
     print('- Picard iteration: ', Picard, file=f)
     print('* PHYSICS:', file=f)
     print('- perturbation amplitude B0 (if nppc=0): ', B0, file=f)
-    print('- mode of oscillation (if nppc=0): ', n, file=f)
+    print('- mode of oscillation n (if nppc=0): ', n, file=f)
     print('- stable plasma: ', stable_plasma, file=f)
     print('- electrons & ions: ', electron_and_ion, file=f)
     print('- counter stream inst.: ', couter_stream_inst, file=f)
@@ -422,7 +421,7 @@ if log_file == True:
     print('- charge to mass : ', QM1, file=f)
     print('- velocity field: ', '(', V0x1, ',', V0y1, ',', V0z1, ')', file=f)
     print('- thermal velocity: ', VT1, file=f)
-    print('* SPECIES 2:', file=f)
+    print('* SPECIES 2: ', file=f)
     print('- number of particles : ', npart2, file=f)
     print('- plasma frequency : ', WP2, file=f)
     print('- charge to mass : ', QM2, file=f)
@@ -432,7 +431,7 @@ if log_file == True:
 
 def myplot_map(xgrid, ygrid, field, title='a', xlabel='b', ylabel='c'):
     '''
-    To plot the map of a vector fied over a grid.
+    To plot the map of a vector fied over a grid
     '''
     plt.figure()
     plt.pcolor(xgrid, ygrid, field)
@@ -443,7 +442,7 @@ def myplot_map(xgrid, ygrid, field, title='a', xlabel='b', ylabel='c'):
 
 def myplot_func(field, title= 'a', xlabel= 'b', ylabel= 'c'):
     '''
-    To plot the behavior of a scalar fied in time.
+    To plot the behavior of a scalar fied in time
     '''
     plt.figure()
     plt.plot(field)
@@ -453,7 +452,7 @@ def myplot_func(field, title= 'a', xlabel= 'b', ylabel= 'c'):
 
 def myplot_particle_map(posx, posy):
     '''
-    To plot particles position over the domain.
+    To plot particles position over the domain
     '''
     plt.figure()
     plt.plot(posx[0:npart1],posy[0:npart1],'b.')
@@ -618,19 +617,80 @@ def define_geometry():
             g23_N[i, j] = jacobian_N[0, 1] * jacobian_N[0, 2] + jacobian_N[1, 1] * jacobian_N[1, 2] + jacobian_N[2, 1] * jacobian_N[2, 2]
             g33_N[i, j] = jacobian_N[0, 2] * jacobian_N[0, 2] + jacobian_N[1, 2] * jacobian_N[1, 2] + jacobian_N[2, 2] * jacobian_N[2, 2]
 
+def norm(vec1, vec2, vec3):
+    '''To calculate the norm of a covariant/contravariant/ordinary vector
+    '''
+    return np.sqrt(vec1**2 + vec2**2 + vec3**2)
+
+def cartesian_to_general_normalised(cartx, carty, cartz, fieldtype):
+    ''' To convert fields from Cartesian coord. (x, y, z) to General Skew coord. (xi, eta, zeta) and normalise the covector to vector (coV = V/||x_xi||)
+    fieltype=='E' or 'J': input -> LR,UD,c, output -> LR,UD,c
+    fieltype=='B':        input -> UD,LR,n, output -> UD,LR,n
+    '''
+    # normalisation of x_\xi^1:  
+    nx1_C = norm(J11_C, J21_C, J31_C)
+    nx1_UD = norm(J11_UD, J21_UD, J31_UD)
+    nx1_LR = norm(J11_LR, J21_LR, J31_LR)
+    nx1_N = norm(J11_N, J21_N, J31_N)
+    # normalisation of x_\xi^2:
+    nx2_C = norm(J12_C, J22_C, J32_C)
+    nx2_UD = norm(J12_UD, J22_UD, J32_UD)
+    nx2_LR = norm(J12_LR, J22_LR, J32_LR)
+    nx2_N = norm(J12_N, J22_N, J32_N)
+    # normalisation of x_\xi^3:
+    nx3_C = norm(J13_C, J23_C, J33_C)
+    nx3_UD = norm(J13_UD, J23_UD, J33_UD)
+    nx3_LR = norm(J13_LR, J23_LR, J33_LR)
+    nx3_N = norm(J13_N, J23_N, J33_N)
+
+    if (fieldtype == 'E') or (fieldtype == 'J'):
+        carty_LR = avg(avg(carty, 'UD2C'), 'C2LR')
+        cartz_LR = avg(cartz, 'C2LR')
+        cartx_UD = avg(avg(cartx, 'LR2C'), 'C2UD')
+        cartz_UD = avg(cartz, 'C2UD')
+        cartx_C  = avg(cartx, 'LR2C')
+        carty_C  = avg(carty, 'UD2C')
+        genx1 = (J11_LR * cartx / nx1_LR + J12_LR * carty_LR / nx2_LR + J13_LR * cartz_LR / nx3_LR)*nx3_LR
+        genx2 = (J21_UD * cartx_UD / nx1_UD + J22_UD * carty / nx2_UD + J23_UD * cartz_UD / nx3_UD)*nx3_UD
+        genx3 = (J31_C * cartx_C / nx1_C + J32_C * carty_C / nx2_C + J33_C * cartz / nx3_C)/nx3_C
+    elif fieldtype == 'B':
+        carty_UD = avg(avg(carty, 'LR2C'), 'C2UD')
+        cartz_UD = avg(cartz, 'N2UD')
+        cartx_LR = avg(avg(cartx, 'UD2C'), 'C2LR')
+        cartz_LR = avg(cartz, 'N2LR')
+        cartx_N = avg(cartx, 'UD2N')
+        carty_N = avg(carty, 'LR2N')
+        genx1 = (J11_UD * cartx / nx1_UD + J12_UD * carty_UD / nx2_UD + J13_UD * cartz_UD / nx3_UD)*nx3_UD
+        genx2 = (J21_LR * cartx_LR / nx1_LR + J22_LR * carty / nx2_LR + J23_LR * cartz_LR / nx3_LR)*nx3_LR
+        genx3 = (J31_N * cartx_N / nx1_N + J32_N * carty_N / nx2_N + J33_N * cartz / nx3_N)*nx3_N
+    
+    return genx1, genx2, genx3
+
 def cartesian_to_general(cartx, carty, cartz, fieldtype):
-    ''' To convert fields from Cartesian coord. (x, y, z) to General coord. (xi, eta, zeta)
+    ''' To convert fields from Cartesian coord. (x, y, z) to General Skew coord. (xi, eta, zeta)
     fieltype=='E' or 'J': input -> LR,UD,c, output -> LR,UD,c
     fieltype=='B':        input -> UD,LR,n, output -> UD,LR,n
     '''
     if (fieldtype == 'E') or (fieldtype == 'J'):
-      genx1 = J11_LR * cartx + J12_LR * avg(avg(carty, 'UD2C'), 'C2LR')+ J13_LR * avg(cartz, 'C2LR')
-      genx2 = J21_UD * avg(avg(cartx, 'LR2C'), 'C2UD') + J22_UD * carty + J23_UD * avg(cartz, 'C2UD')
-      genx3 = J31_C * avg(cartx, 'LR2C') + J32_C * avg(carty, 'UD2C') + J33_C * cartz
+        carty_LR = avg(avg(carty, 'UD2C'), 'C2LR')
+        cartz_LR = avg(cartz, 'C2LR')
+        cartx_UD = avg(avg(cartx, 'LR2C'), 'C2UD')
+        cartz_UD = avg(cartz, 'C2UD')
+        cartx_C = avg(cartx, 'LR2C')
+        carty_C = avg(carty, 'UD2C')
+        genx1 = J11_LR * cartx    + J12_LR * carty_LR + J13_LR * cartz_LR
+        genx2 = J21_UD * cartx_UD + J22_UD * carty    + J23_UD * cartz_UD
+        genx3 = J31_C  * cartx_C  + J32_C  * carty_C  + J33_C  * cartz
     elif fieldtype == 'B':
-      genx1 = J11_UD * cartx + J12_UD * avg(avg(carty, 'LR2C'), 'C2UD') + J13_UD * avg(cartz, 'N2UD')
-      genx2 = J21_LR * avg(avg(cartx, 'UD2C'), 'C2LR') + J22_LR * carty + J23_LR * avg(cartz, 'N2LR')
-      genx3 = J31_N * avg(cartx, 'UD2N') + J32_N * avg(carty, 'LR2N') + J33_N * cartz
+        carty_UD = avg(avg(carty, 'LR2C'), 'C2UD')
+        cartz_UD = avg(cartz, 'N2UD')
+        cartx_LR = avg(avg(cartx, 'UD2C'), 'C2LR')
+        cartz_LR = avg(cartz, 'N2LR')
+        cartx_N = avg(cartx, 'UD2N')
+        carty_N = avg(carty, 'LR2N')
+        genx1 = J11_UD * cartx    + J12_UD * carty_UD + J13_UD * cartz_UD
+        genx2 = J21_LR * cartx_LR + J22_LR * carty    + J23_LR * cartz_LR
+        genx3 = J31_N  * cartx_N  + J32_N  * carty_N  + J33_N  * cartz
     
     return genx1, genx2, genx3
 
@@ -640,28 +700,35 @@ def general_to_cartesian(genx1, genx2, genx3, fieldtype):
     fieltype=='B':        input -> UD,LR,n, output -> UD,LR,n
     '''
     if (fieldtype == 'E') or (fieldtype == 'J'):
-      cartx = j11_LR * genx1 + j12_LR * avg(avg(genx2, 'UD2C'), 'C2LR')+ j13_LR * avg(genx3, 'C2LR')
-      carty = j21_UD * avg(avg(genx1, 'LR2C'), 'C2UD') + j22_UD * genx2 + j23_UD * avg(genx3, 'C2UD')
-      cartz = j31_C * avg(genx1, 'LR2C') + j32_C * avg(genx2, 'UD2C') + j33_C * genx3
+        genx2_LR = avg(avg(genx2, 'UD2C'), 'C2LR')
+        genx3_LR = avg(genx3, 'C2LR')
+        genx1_UD = avg(avg(genx1, 'LR2C'), 'C2UD')
+        genx3_UD = avg(genx3, 'C2UD')
+        genx1_C = avg(genx1, 'LR2C')
+        genx2_C = avg(genx2, 'UD2C')
+        cartx = j11_LR * genx1 + j12_LR * genx2_LR + j13_LR * genx3_LR
+        carty = j21_UD * genx1_UD + j22_UD * genx2 + j23_UD * genx3_UD
+        cartz = j31_C * genx1_C + j32_C * genx2_C + j33_C * genx3
     elif fieldtype == 'B':
-      cartx = j11_UD * genx1 + j12_UD * avg(avg(genx2, 'LR2C'), 'C2UD') + j13_UD * avg(genx3, 'N2UD')
-      carty = j21_LR * avg(avg(genx1, 'UD2C'), 'C2LR') + j22_LR * genx2 + j23_LR * avg(genx3, 'N2LR')
-      cartz = j31_N * avg(genx1, 'UD2N') + j32_N * avg(genx2, 'LR2N') + j33_N * genx3
+        genx2_UD = avg(avg(genx2, 'LR2C'), 'C2UD')
+        genx3_UD = avg(genx3, 'N2UD')
+        genx1_LR = avg(avg(genx1, 'UD2C'), 'C2LR')
+        genx3_LR = avg(genx3, 'N2LR')
+        genx1_N = avg(genx1, 'UD2N')
+        genx2_N = avg(genx2, 'LR2N')
+        cartx = j11_UD * genx1 + j12_UD * genx2_UD + j13_UD * genx3_UD
+        carty = j21_LR * genx1_LR + j22_LR * genx2 + j23_LR * genx3_LR
+        cartz = j31_N * genx1_N + j32_N * genx2_N + j33_N * genx3
     
     return cartx, carty, cartz
 
-def cartesian_to_general_particle(cartx, carty):
+def map_cartesian_to_general(cartx, carty):
     '''To convert the particles position from Cartesian coord. (x, y, z) to General coord. (xi, eta, zeta)
     '''
-    genx1 = cartx + eps*np.sin(2*np.pi*cartx/Lx)*np.sin(2*np.pi*carty/Ly)
-    genx2 = carty + eps*np.sin(2*np.pi*cartx/Lx)*np.sin(2*np.pi*carty/Ly)
+    genx1 = cartx + eps * np.sin(2 * np.pi * cartx/Lx) * np.sin(2 * np.pi * carty/Ly)
+    genx2 = carty + eps * np.sin(2 * np.pi * cartx/Lx) * np.sin(2 * np.pi * carty/Ly)
 
     return genx1, genx2
-
-def norm(vecx, vecy, vecz):
-    '''To calculate the norm of a covariant/contravariant/ordinary vector
-    '''
-    return np.sqrt(vecx**2 + vecy**2 + vecz**2)
 
 def dirder(field, dertype):
     ''' To take the directional derivative of a quantity
@@ -739,7 +806,7 @@ def avgC2N(fieldC):
 
 def avg(field, avgtype):
     ''' To take the average of a quantity
-        avgtype defines input/output grid type and direction
+    avgtype defines input/output grid type and direction
     '''
     global nxn, nyn, nxc, nyc, dx, dy
 
@@ -793,33 +860,117 @@ def avg(field, avgtype):
 
     return avgfield
 
+def curl_normalised(fieldx, fieldy, fieldz, fieldtype):
+    ''' To take the curl of either E or B in Skew coordinate and normalise the covector to vector (coV = V/||x_xi||)
+    curl^i = 1/J·(d_j·g_kq·A^q - d_k·g_jq·A^q)
+    fieltype=='E': input -> LR,UD,c, output -> UD,LR,n
+    fieltype=='B': input -> UD,LR,n, output -> LR,UD,c
+    '''
+    # normalisation of x_\xi^1:  
+    nx1_C = norm(J11_C, J21_C, J31_C)
+    nx1_UD = norm(J11_UD, J21_UD, J31_UD)
+    nx1_LR = norm(J11_LR, J21_LR, J31_LR)
+    nx1_N = norm(J11_N, J21_N, J31_N)
+    # normalisation of x_\xi^2:
+    nx2_C = norm(J12_C, J22_C, J32_C)
+    nx2_UD = norm(J12_UD, J22_UD, J32_UD)
+    nx2_LR = norm(J12_LR, J22_LR, J32_LR)
+    nx2_N = norm(J12_N, J22_N, J32_N)
+    # normalisation of x_\xi^3:
+    nx3_C = norm(J13_C, J23_C, J33_C)
+    nx3_UD = norm(J13_UD, J23_UD, J33_UD)
+    nx3_LR = norm(J13_LR, J23_LR, J33_LR)
+    nx3_N = norm(J13_N, J23_N, J33_N)
+
+    if fieldtype == 'E':
+        fieldx_C = avg(fieldx, 'LR2C')
+        fieldy_C = avg(fieldy, 'UD2C')
+        fieldx_UD = avg(avg(fieldx, 'LR2C'), 'C2UD')
+        fieldz_UD = avg(fieldz, 'C2UD')
+        fieldy_LR = avg(avg(fieldy, 'UD2C'), 'C2LR')
+        fieldz_LR = avg(fieldz, 'C2LR')
+
+        curl_x =   dirder(g31_C * fieldx_C / nx1_C + g32_C * fieldy_C / nx2_C + g33_C * fieldz / nx3_C, 'C2UD')/J_UD*nx1_UD
+        curl_y = - dirder(g31_C * fieldx_C / nx1_C + g32_C * fieldy_C / nx2_C + g33_C * fieldz / nx3_C, 'C2LR')/J_LR*nx2_LR
+        curl_z =   dirder(g21_UD * fieldx_UD / nx1_UD + g22_UD * fieldy / nx2_UD + g23_UD * fieldz_UD / nx3_UD, 'UD2N')/J_N*nx3_N\
+                 - dirder(g11_LR * fieldx / nx1_LR + g12_LR * fieldy_LR / nx2_LR + g13_LR * fieldz_LR / nx3_LR, 'LR2N')/J_N*nx3_N
+    elif fieldtype == 'B':
+        fieldx_N = avg(fieldx, 'UD2N')
+        fieldy_N = avg(fieldy, 'LR2N')
+        fieldx_LR = avg(avg(fieldx, 'UD2N'), 'N2LR')
+        fieldz_LR = avg(fieldz, 'N2LR')
+        fieldy_UD = avg(avg(fieldy, 'LR2N'), 'N2UD')
+        fieldz_UD = avg(fieldz, 'N2UD')
+        
+        curl_x =   dirder(g31_N * fieldx_N / nx1_N + g32_N * fieldy_N / nx2_N + J33_N * fieldz / nx3_N, 'N2LR')/J_LR*nx1_LR
+        curl_y = - dirder(g31_N * fieldx_N / nx1_N + g32_N * fieldy_N / nx2_N + g33_N * fieldz / nx3_N, 'N2UD')/J_UD*nx2_UD
+        curl_z =   dirder(g21_LR * fieldx_LR / nx1_LR + g22_LR * fieldy / nx2_LR + g23_LR * fieldz_LR / nx3_LR, 'LR2C')/J_C*nx3_C\
+                 - dirder(g11_UD * fieldx / nx1_UD + g12_UD * fieldy_UD / nx2_UD + g13_UD * fieldz_UD / nx3_UD, 'UD2C')/J_C*nx3_C
+    
+    return curl_x, curl_y, curl_z
+
 def curl(fieldx, fieldy, fieldz, fieldtype):
-    ''' To take the curl of either E or B
+    ''' To take the curl of either E or B in Skew coord.
+    curl^i = 1/J·(d_j·g_kq·A^q - d_k·g_jq·A^q)
     fieltype=='E': input -> LR,UD,c, output -> UD,LR,n
     fieltype=='B': input -> UD,LR,n, output -> LR,UD,c
     '''
     if fieldtype == 'E':
-      curl_x =   dirder((g31_C * avg(fieldx, 'LR2C') + g32_C * avg(fieldy, 'UD2C') + g33_C * fieldz)/norm(J31_C, J32_C, J33_C), 'C2UD')/J_UD/norm(J11_UD, J21_UD, J31_UD)
-      curl_y = - dirder((g31_C * avg(fieldx, 'LR2C') + g32_C * avg(fieldy, 'UD2C') + g33_C * fieldz)/norm(J31_C, J32_C, J33_C), 'C2LR')/J_LR/norm(J12_LR, J22_LR, J32_LR)
-      curl_z = dirder((g21_UD * avg(avg(fieldx, 'LR2C'),'C2UD') +g22_UD * fieldy + g23_UD * avg(fieldz, 'C2UD'))/norm(J21_UD, J22_UD, J23_UD), 'UD2N')/J_N/norm(J13_N, J23_N, J33_N)\
-              - dirder((g11_LR * fieldx + g12_LR * avg(avg(fieldy, 'UD2C'), 'C2LR') + g13_LR * avg(fieldz, 'C2LR'))/norm(J11_LR, J12_LR, J13_LR), 'LR2N')/J_N/norm(J13_N, J23_N, J33_N)
+        fieldx_C = avg(fieldx, 'LR2C')
+        fieldy_C = avg(fieldy, 'UD2C')
+        fieldx_UD = avg(avg(fieldx, 'LR2C'), 'C2UD')
+        fieldz_UD = avg(fieldz, 'C2UD')
+        fieldy_LR = avg(avg(fieldy, 'UD2C'), 'C2LR')
+        fieldz_LR = avg(fieldz, 'C2LR')
+
+        curl_x =   dirder(g31_C * fieldx_C + g32_C * fieldy_C + g33_C * fieldz, 'C2UD')/J_UD
+        curl_y = - dirder(g31_C * fieldx_C + g32_C * fieldy_C + g33_C * fieldz, 'C2LR')/J_LR
+        curl_z =   dirder(g21_UD * fieldx_UD + g22_UD * fieldy + g23_UD * fieldz_UD, 'UD2N')/J_N\
+                 - dirder(g11_LR * fieldx + g12_LR * fieldy_LR + g13_LR * fieldz_LR, 'LR2N')/J_N
     elif fieldtype == 'B':
-      curl_x = dirder((g31_N * avg(fieldx, 'UD2N') + g32_N * avg(fieldy, 'LR2N') + J33_N * fieldz)/norm(J31_N, J32_N, J33_N), 'N2LR')/J_LR/norm(J11_LR, J21_LR, J31_LR)
-      curl_y = - dirder((g31_N * avg(fieldx, 'UD2N') + g32_N * avg(fieldy, 'LR2N') + g33_N * fieldz)/norm(J31_N, J32_N, J33_N), 'N2UD')/J_UD/norm(J12_UD, J22_UD, J32_UD)
-      curl_z = dirder((g21_LR * avg(avg(fieldx, 'UD2N'), 'N2LR') + g22_LR * fieldy + g23_LR * avg(fieldz, 'N2LR'))/norm(J21_LR, J22_LR, J23_LR), 'LR2C')/J_C/norm(J13_C, J23_C, J33_C)\
-             - dirder((g11_UD * fieldx + g12_UD * avg(avg(fieldy, 'LR2N'), 'N2UD') + g13_UD * avg(fieldz, 'N2UD'))/norm(J11_UD, J12_UD, J13_UD), 'UD2C')/J_C/norm(J13_C, J23_C, J33_C)
+        fieldx_N = avg(fieldx, 'UD2N')
+        fieldy_N = avg(fieldy, 'LR2N')
+        fieldx_LR = avg(avg(fieldx, 'UD2N'), 'N2LR')
+        fieldz_LR = avg(fieldz, 'N2LR')
+        fieldy_UD = avg(avg(fieldy, 'LR2N'), 'N2UD')
+        fieldz_UD = avg(fieldz, 'N2UD')
+        
+        curl_x =   dirder(g31_N * fieldx_N + g32_N * fieldy_N + J33_N * fieldz, 'N2LR')/J_LR
+        curl_y = - dirder(g31_N * fieldx_N + g32_N * fieldy_N + g33_N * fieldz, 'N2UD')/J_UD
+        curl_z =   dirder(g21_LR * fieldx_LR + g22_LR * fieldy + g23_LR * fieldz_LR, 'LR2C')/J_C\
+                 - dirder(g11_UD * fieldx + g12_UD * fieldy_UD + g13_UD * fieldz_UD, 'UD2C')/J_C
+    
     return curl_x, curl_y, curl_z
 
+def div_normalised(fieldx, fieldy, fieldz, fieldtype):
+    ''' To take the divergence of either E or B in Skew coord. and normalise the covector to vector (coV = V/||x_xi||)
+    div = 1/J·d_i(J·A^i)
+    fieltype=='E': input -> LR,UD,c, output -> c,c,c
+    fieltype=='B': input -> UD,LR,n, output -> n,n,n
+    '''
+    nx1_UD = norm(J11_UD, J21_UD, J31_UD)
+    nx1_LR = norm(J11_LR, J21_LR, J31_LR)
+    nx2_UD = norm(J12_UD, J22_UD, J32_UD)
+    nx2_LR = norm(J12_LR, J22_LR, J32_LR)
+    if fieldtype == 'E':
+        div = (dirder(J_LR * fieldx / nx1_LR, 'LR2C') + dirder(J_UD * fieldy / nx2_UD, 'UD2C'))/J_C
+
+    elif fieldtype == 'B':
+        div = (dirder(J_UD * fieldx / nx1_UD, 'UD2N') + dirder(J_LR * fieldy / nx2_LR, 'LR2N'))/J_N
+
+    return div
+
 def div(fieldx, fieldy, fieldz, fieldtype):
-    ''' To take the divergence of either E or B
+    ''' To take the divergence of either E or B in in Skew coord.
+    div = 1/J·d_i(J·A^i)
     fieltype=='E': input -> LR,UD,c, output -> c,c,c
     fieltype=='B': input -> UD,LR,n, output -> n,n,n
     '''
     if fieldtype == 'E':
-        div = (dirder(J_LR*fieldx/norm(J11_LR, J21_LR, J31_LR), 'LR2C') + dirder(J_UD*fieldy/norm(J12_UD, J22_UD, J32_UD), 'UD2C'))/J_C
+        div = (dirder(J_LR * fieldx, 'LR2C') + dirder(J_UD * fieldy, 'UD2C'))/J_C
 
     elif fieldtype == 'B':
-        div = (dirder(J_UD*fieldx/norm(J11_UD, J21_UD, J31_UD), 'UD2N') + dirder(J_LR*fieldy/norm(J12_LR, J22_LR, J32_LR), 'LR2N'))/J_N
+        div = (dirder(J_UD * fieldx, 'UD2N') + dirder(J_LR * fieldy, 'LR2N'))/J_N
 
     return div
 
@@ -876,7 +1027,6 @@ def residual(xkrylov):
     else:
         gbar = np.ones(npart)
     
-    # kick-drift-kick form:
     # x:            t = n   -> t = n
     # xnew:         t = n+1 -> t = n+1
     # xbar :        t = n+1/2 -> t = n+1/2
@@ -888,7 +1038,7 @@ def residual(xkrylov):
     ybar = ybar%Ly
     # conversion to general geom.
     if perturb:
-        xgenbar, ygenbar = cartesian_to_general_particle(xbar, ybar)
+        xgenbar, ygenbar = map_cartesian_to_general(xbar, ybar)
     else:
         xgenbar, ygenbar = xbar, ybar
     
@@ -1095,7 +1245,7 @@ def particle_to_grid_J(xk, yk, uk, vk, wk, qk):
 define_geometry()
 
 if perturb:
-    xgen, ygen = cartesian_to_general_particle(x, y)
+    xgen, ygen = map_cartesian_to_general(x, y)
 else:
     xgen, ygen = x, y
     
@@ -1114,22 +1264,22 @@ else:
 if perturb:
     # Energy -> defined in C
     histEnergyE1=[np.sum(J_C * g11_C * avg(E1**2, 'LR2C') \
-                       + J_C * g12_C * avg(E1, 'LR2C') * avg(E2, 'UD2C'))/2.*dx*dy] #\
-                       #+ J_C * g13_C * avg(E1, 'LR2C') * E3)/2.*dx*dy]
+                       + J_C * g12_C * avg(E1, 'LR2C') * avg(E2, 'UD2C') \
+                       + J_C * g13_C * avg(E1, 'LR2C') * E3)/2.*dx*dy]
     histEnergyE2=[np.sum(J_C * g21_C * avg(E2, 'UD2C') * avg(E1, 'LR2C') \
-                       + J_C * g22_C * avg(E2**2, 'UD2C'))/2.*dx*dy]# \
-                       #+ J_C * g23_C * avg(E2, 'UD2C') * E3)/2.*dx*dy]
-    histEnergyE3=[np.sum(#J_C * g31_C * E3 * avg(E1, 'LR2C') \
-                       #+ J_C * g32_C * E3 * avg(E2, 'UD2C') \
+                       + J_C * g22_C * avg(E2**2, 'UD2C') \
+                       + J_C * g23_C * avg(E2, 'UD2C') * E3)/2.*dx*dy]
+    histEnergyE3=[np.sum(J_C * g31_C * E3 * avg(E1, 'LR2C') \
+                       + J_C * g32_C * E3 * avg(E2, 'UD2C') \
                        + J_C * g33_C * E3**2)/2.*dx*dy]
-    histEnergyB1=[np.sum(J_C * g11_C * avg(B1**2, 'UD2C')
-                       + J_C * g12_C * avg(B1, 'UD2C') * avg(B2, 'LR2C'))/2.*dx*dy]# \
-                       #+ J_C * g13_C * avg(B1, 'UD2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy]
+    histEnergyB1=[np.sum(J_C * g11_C * avg(B1**2, 'UD2C') \
+                       + J_C * g12_C * avg(B1, 'UD2C') * avg(B2, 'LR2C') \
+                       + J_C * g13_C * avg(B1, 'UD2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy]
     histEnergyB2=[np.sum(J_C * g21_C * avg(B2, 'LR2C') * avg(B1, 'UD2C')\
-                       + J_C * g22_C * avg(B2**2, 'LR2C'))/2.*dx*dy]# \
-                       #+ J_C * g23_C * avg(B2, 'LR2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy]
-    histEnergyB3=[np.sum(#J_C * g31_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B1, 'UD2C') \
-                       #+ J_C * g32_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B2, 'LR2C') \
+                       + J_C * g22_C * avg(B2**2, 'LR2C') \
+                       + J_C * g23_C * avg(B2, 'LR2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy]
+    histEnergyB3=[np.sum(J_C * g31_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B1, 'UD2C') \
+                       + J_C * g32_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B2, 'LR2C') \
                        + J_C * g33_C * avg(avg(B3**2, 'N2LR'), 'LR2C'))/2.*dx*dy]
 else:
     histEnergyE1=[np.sum(E1[0:nxn-1,:]**2)/2.*dx*dy]
@@ -1157,7 +1307,7 @@ print('energyBx=',histEnergyB1[0],'energyBy=',histEnergyB2[0],'energyBz=',histEn
 print('Momentumx=',histMomentumx[0],'Momentumy=',histMomentumy[0],'Momentumz=',histMomentumz[0])
   
 if perturb:
-    xgen, ygen = cartesian_to_general_particle(x, y)
+    xgen, ygen = map_cartesian_to_general(x, y)
 else:
     xgen, ygen = x, y
 
@@ -1250,7 +1400,7 @@ for it in range(1,nt+1):
     B3 = B3 - dt*curlE3
     
     if perturb:
-        xgen, ygen = cartesian_to_general_particle(x, y)
+        xgen, ygen = map_cartesian_to_general(x, y)
     else:
         xgen, ygen = x, y
 
@@ -1282,24 +1432,24 @@ for it in range(1,nt+1):
  
     if perturb:
         # Energy -> defined in C
-        energyE1= np.sum(J_C * g11_C * avg(E1**2, 'LR2C') \
-                        + J_C * g12_C * avg(E1, 'LR2C') * avg(E2, 'UD2C'))/2.*dx*dy# \
-                        #+ J_C * g13_C * avg(E1, 'LR2C') * E3)/2.*dx*dy 
-        energyE2= np.sum(J_C * g21_C * avg(E2, 'UD2C') * avg(E1, 'LR2C') \
-                         + J_C * g22_C * avg(E2**2, 'UD2C'))/2.*dx*dy# \
-                        #+ J_C * g23_C * avg(E2, 'UD2C') * E3)/2.*dx*dy 
-        energyE3= np.sum(#J_C * g31_C * E3 * avg(E1, 'LR2C') \
-                       #+ J_C * g32_C * E3 * avg(E2, 'UD2C') \
-                       + J_C * g33_C * E3**2)/2.*dx*dy 
-        energyB1= np.sum(J_C * g11_C * avg(B1, 'UD2C')**2 \
-                       + J_C * g12_C * avg(B1, 'UD2C') * avg(B2, 'LR2C'))/2.*dx*dy# \
-                       #+ J_C * g13_C * avg(B1, 'UD2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy 
-        energyB2= np.sum(J_C * g21_C * avg(B2, 'LR2C') * avg(B1, 'UD2C')\
-                         + J_C * g22_C * avg(B2**2, 'LR2C'))/2.*dx*dy  # \
-                       #+ J_C * g23_C * avg(B2, 'LR2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy 
-        energyB3= np.sum(#J_C * g31_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B1, 'UD2C') \
-                       #+ J_C * g32_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B2, 'LR2C') \
-                       + J_C * g33_C * avg(avg(B3**2, 'N2LR'), 'LR2C'))/2.*dx*dy
+        energyE1 = np.sum(J_C * g11_C * avg(E1**2, 'LR2C') \
+                        + J_C * g12_C * avg(E1, 'LR2C') * avg(E2, 'UD2C') \
+                        + J_C * g13_C * avg(E1, 'LR2C') * E3)/2.*dx*dy 
+        energyE2 = np.sum(J_C * g21_C * avg(E2, 'UD2C') * avg(E1, 'LR2C') \
+                        + J_C * g22_C * avg(E2**2, 'UD2C') \
+                        + J_C * g23_C * avg(E2, 'UD2C') * E3)/2.*dx*dy
+        energyE3 = np.sum(J_C * g31_C * E3 * avg(E1, 'LR2C') \
+                        + J_C * g32_C * E3 * avg(E2, 'UD2C') \
+                        + J_C * g33_C * E3**2)/2.*dx*dy
+        energyB1 = np.sum(J_C * g11_C * avg(B1, 'UD2C')**2 \
+                        + J_C * g12_C * avg(B1, 'UD2C') * avg(B2, 'LR2C') \
+                        + J_C * g13_C * avg(B1, 'UD2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy
+        energyB2 = np.sum(J_C * g21_C * avg(B2, 'LR2C') * avg(B1, 'UD2C')\
+                        + J_C * g22_C * avg(B2**2, 'LR2C') \
+                        + J_C * g23_C * avg(B2, 'LR2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy
+        energyB3 = np.sum(J_C * g31_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B1, 'UD2C') \
+                        + J_C * g32_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B2, 'LR2C') \
+                        + J_C * g33_C * avg(avg(B3**2, 'N2LR'), 'LR2C'))/2.*dx*dy
     else:
         energyE1 = np.sum(E1[0:nxn-1,:]**2)/2.*dx*dy
         energyE2 = np.sum(E2[:,0:nyn-1]**2)/2.*dx*dy

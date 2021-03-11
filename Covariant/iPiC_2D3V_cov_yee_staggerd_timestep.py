@@ -13,15 +13,12 @@ import matplotlib.pyplot as plt
 import time
 import sys
 
-
-#TODO: Fix cart to gen and gen to cart
 #TODO: Build geom needs to be fixed bc we currently use wrong map
 #TODO: Fix curl (dual basis and normalisation)
 
-
 PATH1 = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/figures/'
 
-# metric fla
+# metric flag
 perturb = True           # perturbed metric tensor
 # method flags
 NK_method = False
@@ -49,7 +46,7 @@ nt = 201
 
 ndpi = 100  # number of dpi per img (stay low 100 for monitoring purpose!)
 every = 20    # how often to plot
-eps = 0.2    # amplitude of the pertutbation
+eps = 0.    # amplitude of the pertutbation
 n = 1.      # mode of oscillation
 B0 = 0.01   # B field perturbation
 
@@ -387,7 +384,7 @@ divB = zeros(nt, np.float64)
 # Energy
 energyP = zeros(nt, np.float64) # particles
 energyP1 = zeros(nt, np.float64) # particles1
-energyP2 = zeros(nt, np.float64) # particles2
+energyP2 = zeros(nt, np.float64)# particles2
 energyE = zeros(nt, np.float64) # Total E
 energyE1 = zeros(nt, np.float64) # E1 field
 energyE2 = zeros(nt, np.float64) # E2 field
@@ -397,10 +394,12 @@ energyB1 = zeros(nt, np.float64) # B1 field
 energyB2 = zeros(nt, np.float64) # B2 field
 energyB3 = zeros(nt, np.float64) # B3 field
 energyTot = zeros(nt, np.float64) # B field
+err_en = zeros(nt, np.float64) # energy error
 momentumTot = zeros(nt, np.float64) # Total momentum
 
 if log_file == True:
     f = open(PATH1 + 'log_file.txt', 'w')
+    print('iPiC_2D3V_cov_yee_staggerd_timestep.py', file=f)
     print('* METRIC:', file=f)
     print('- perturbation: ', perturb, file=f)
     print('* METHOD:', file=f)
@@ -624,40 +623,45 @@ def define_geometry():
             g23_N[i, j] = jacobian_N[0, 1] * jacobian_N[0, 2] + jacobian_N[1, 1] * jacobian_N[1, 2] + jacobian_N[2, 1] * jacobian_N[2, 2]
             g33_N[i, j] = jacobian_N[0, 2] * jacobian_N[0, 2] + jacobian_N[1, 2] * jacobian_N[1, 2] + jacobian_N[2, 2] * jacobian_N[2, 2]
 
+def norm(vecx, vecy, vecz):
+    '''To calculate the norm of a covariant/contravariant/ordinary vector
+    '''
+    return np.sqrt(vecx**2 + vecy**2 + vecz**2)
+
 def cartesian_to_general(cartx, carty, cartz, fieldtype):
-    ''' To convert fields from Cartesian geom. to General geom.
+    ''' To convert fields from Cartesian coord. (x, y, z) to General coord. (xi, eta, zeta)
     fieltype=='E' or 'J': input -> LR,UD,c, output -> LR,UD,c
     fieltype=='B':        input -> UD,LR,n, output -> UD,LR,n
     '''
     if (fieldtype == 'E') or (fieldtype == 'J'):
-      genx1 = J_LR * J11_LR * cartx + J_LR * J11_LR * avg(avg(carty, 'UD2C'), 'C2LR')+ J_LR * J11_LR * avg(cartz, 'C2LR')
-      genx2 = J_UD * J22_UD * avg(avg(cartx, 'LR2C'), 'C2UD') + J_UD * J22_UD *carty + J_UD * J22_UD * avg(cartz, 'C2UD')
-      genx3 = J_C * J33_C * avg(cartx, 'LR2C') + J_C * J33_C * avg(carty, 'UD2C') + J_C * J33_C * cartz
+      genx1 = J11_LR * cartx + J11_LR * avg(avg(carty, 'UD2C'), 'C2LR')+ J11_LR * avg(cartz, 'C2LR')
+      genx2 = J22_UD * avg(avg(cartx, 'LR2C'), 'C2UD') + J22_UD * carty + J22_UD * avg(cartz, 'C2UD')
+      genx3 = J33_C * avg(cartx, 'LR2C') + J33_C * avg(carty, 'UD2C') + J33_C * cartz
     elif fieldtype == 'B':
-      genx1 = J_UD * J11_UD * cartx + J_UD * J11_UD * avg(avg(carty, 'LR2C'), 'C2UD') + J_UD * J11_UD * avg(cartz, 'N2UD')
-      genx2 = J_LR * J22_LR * avg(avg(cartx, 'UD2C'), 'C2LR') + J_LR * J22_LR * carty + J_LR * J22_LR * avg(cartz, 'N2LR')
-      genx3 = J_N * J33_N * avg(cartx, 'UD2N') + J_N * J33_N * avg(carty, 'LR2N') + J_N * J33_N * cartz
+      genx1 = J11_UD * cartx + J11_UD * avg(avg(carty, 'LR2C'), 'C2UD') + J11_UD * avg(cartz, 'N2UD')
+      genx2 = J22_LR * avg(avg(cartx, 'UD2C'), 'C2LR') + J22_LR * carty + J22_LR * avg(cartz, 'N2LR')
+      genx3 = J33_N * avg(cartx, 'UD2N') + J33_N * avg(carty, 'LR2N') + J33_N * cartz
     
     return genx1, genx2, genx3
 
 def general_to_cartesian(genx1, genx2, genx3, fieldtype):
-    ''' To convert fields from General geom. to Cartesian geom.
+    ''' To convert fields from General coord. (xi, eta, zeta) to Cartesian coord (x, y, z)
     fieltype=='E' or 'J': input -> LR,UD,c, output -> LR,UD,c
     fieltype=='B':        input -> UD,LR,n, output -> UD,LR,n
     '''
     if (fieldtype == 'E') or (fieldtype == 'J'):
-      cartx = j_LR * j11_LR * genx1 + j_LR * j11_LR * avg(avg(genx2, 'UD2C'), 'C2LR')+ j_LR * j11_LR * avg(genx3, 'C2LR')
-      carty = j_UD * j22_UD * avg(avg(genx1, 'LR2C'), 'C2UD') + j_UD * j22_UD * genx2 + j_UD * j22_UD * avg(genx3, 'C2UD')
-      cartz = j_C * j33_C * avg(genx1, 'LR2C') + j_C * j33_C * avg(genx2, 'UD2C') + j_C * j33_C * genx3
+      cartx = j11_LR * genx1 + j11_LR * avg(avg(genx2, 'UD2C'), 'C2LR')+ j11_LR * avg(genx3, 'C2LR')
+      carty = j22_UD * avg(avg(genx1, 'LR2C'), 'C2UD') + j22_UD * genx2 + j22_UD * avg(genx3, 'C2UD')
+      cartz = j33_C * avg(genx1, 'LR2C') + j33_C * avg(genx2, 'UD2C') + j33_C * genx3
     elif fieldtype == 'B':
-      cartx = j_UD * j11_UD * genx1 + j_UD * j11_UD * avg(avg(genx2, 'LR2C'), 'C2UD') + j_UD * j11_UD * avg(genx3, 'N2UD')
-      carty = j_LR * j22_LR * avg(avg(genx1, 'UD2C'), 'C2LR') + j_LR * j22_LR * genx2 + j_LR * j22_LR * avg(genx3, 'N2LR')
-      cartz = j_N * j33_N * avg(genx1, 'UD2N') + j_N * j33_N * avg(genx2, 'LR2N') + j_N * j33_N * genx3
+      cartx = j11_UD * genx1 + j11_UD * avg(avg(genx2, 'LR2C'), 'C2UD') + j11_UD * avg(genx3, 'N2UD')
+      carty = j22_LR * avg(avg(genx1, 'UD2C'), 'C2LR') + j22_LR * genx2 + j22_LR * avg(genx3, 'N2LR')
+      cartz = j33_N * avg(genx1, 'UD2N') + j33_N * avg(genx2, 'LR2N') + j33_N * genx3
     
     return cartx, carty, cartz
 
 def cartesian_to_general_particle(cartx, carty):
-    '''To convert the particles position from Cartesian geom. to General geom.
+    '''To convert the particles position from Cartesian coord. (x, y, z) to General coord. (xi, eta, zeta)
     '''
     genx1 = cartx + eps*np.sin(2*np.pi*cartx/Lx)*np.sin(2*np.pi*carty/Ly)
     genx2 = carty + eps*np.sin(2*np.pi*cartx/Lx)*np.sin(2*np.pi*carty/Ly)
@@ -794,33 +798,117 @@ def avg(field, avgtype):
 
     return avgfield
 
+def curl_normalised(fieldx, fieldy, fieldz, fieldtype):
+    ''' To take the curl of either E or B in Skew coordinate and normalise the covector to vector (coV = V/||x_xi||)
+    curl^i = 1/J·(d_j·g_kq·A^q - d_k·g_jq·A^q)
+    fieltype=='E': input -> LR,UD,c, output -> UD,LR,n
+    fieltype=='B': input -> UD,LR,n, output -> LR,UD,c
+    '''
+    # normalisation of x_\xi^1:  
+    nx1_C = norm(J11_C, J21_C, J31_C)
+    nx1_UD = norm(J11_UD, J21_UD, J31_UD)
+    nx1_LR = norm(J11_LR, J21_LR, J31_LR)
+    nx1_N = norm(J11_N, J21_N, J31_N)
+    # normalisation of x_\xi^2:
+    nx2_C = norm(J12_C, J22_C, J32_C)
+    nx2_UD = norm(J12_UD, J22_UD, J32_UD)
+    nx2_LR = norm(J12_LR, J22_LR, J32_LR)
+    nx2_N = norm(J12_N, J22_N, J32_N)
+    # normalisation of x_\xi^3:
+    nx3_C = norm(J13_C, J23_C, J33_C)
+    nx3_UD = norm(J13_UD, J23_UD, J33_UD)
+    nx3_LR = norm(J13_LR, J23_LR, J33_LR)
+    nx3_N = norm(J13_N, J23_N, J33_N)
+
+    if fieldtype == 'E':
+        fieldx_C = avg(fieldx, 'LR2C')
+        fieldy_C = avg(fieldy, 'UD2C')
+        fieldx_UD = avg(avg(fieldx, 'LR2C'), 'C2UD')
+        fieldz_UD = avg(fieldz, 'C2UD')
+        fieldy_LR = avg(avg(fieldy, 'UD2C'), 'C2LR')
+        fieldz_LR = avg(fieldz, 'C2LR')
+
+        curl_x =   dirder(g31_C * fieldx_C / nx1_C + g32_C * fieldy_C / nx2_C + g33_C * fieldz / nx3_C, 'C2UD')/J_UD*nx1_UD
+        curl_y = - dirder(g31_C * fieldx_C / nx1_C + g32_C * fieldy_C / nx2_C + g33_C * fieldz / nx3_C, 'C2LR')/J_LR*nx2_LR
+        curl_z =   dirder(g21_UD * fieldx_UD / nx1_UD + g22_UD * fieldy / nx2_UD + g23_UD * fieldz_UD / nx3_UD, 'UD2N')/J_N*nx3_N\
+                 - dirder(g11_LR * fieldx / nx1_LR + g12_LR * fieldy_LR / nx2_LR + g13_LR * fieldz_LR / nx3_LR, 'LR2N')/J_N*nx3_N
+    elif fieldtype == 'B':
+        fieldx_N = avg(fieldx, 'UD2N')
+        fieldy_N = avg(fieldy, 'LR2N')
+        fieldx_LR = avg(avg(fieldx, 'UD2N'), 'N2LR')
+        fieldz_LR = avg(fieldz, 'N2LR')
+        fieldy_UD = avg(avg(fieldy, 'LR2N'), 'N2UD')
+        fieldz_UD = avg(fieldz, 'N2UD')
+        
+        curl_x =   dirder(g31_N * fieldx_N / nx1_N + g32_N * fieldy_N / nx2_N + J33_N * fieldz / nx3_N, 'N2LR')/J_LR*nx1_LR
+        curl_y = - dirder(g31_N * fieldx_N / nx1_N + g32_N * fieldy_N / nx2_N + g33_N * fieldz / nx3_N, 'N2UD')/J_UD*nx2_UD
+        curl_z =   dirder(g21_LR * fieldx_LR / nx1_LR + g22_LR * fieldy / nx2_LR + g23_LR * fieldz_LR / nx3_LR, 'LR2C')/J_C*nx3_C\
+                 - dirder(g11_UD * fieldx / nx1_UD + g12_UD * fieldy_UD / nx2_UD + g13_UD * fieldz_UD / nx3_UD, 'UD2C')/J_C*nx3_C
+    
+    return curl_x, curl_y, curl_z
+
 def curl(fieldx, fieldy, fieldz, fieldtype):
-    ''' To take the curl of either E or B
+    ''' To take the curl of either E or B in Skew coord.
+    curl^i = 1/J·(d_j·g_kq·A^q - d_k·g_jq·A^q)
     fieltype=='E': input -> LR,UD,c, output -> UD,LR,n
     fieltype=='B': input -> UD,LR,n, output -> LR,UD,c
     '''
     if fieldtype == 'E':
-      curl_x =   (dirder(g31_C * avg(fieldx, 'LR2C'), 'C2UD') + dirder(g32_C * avg(fieldy, 'UD2C'), 'C2UD') + dirder(g33_C * fieldz, 'C2UD'))/J_UD#np.sqrt(g11_UD)
-      curl_y = - (dirder(g31_C * avg(fieldx, 'LR2C'), 'C2LR') + dirder(g32_C * avg(fieldy, 'UD2C'), 'C2LR') + dirder(g33_C * fieldz, 'C2LR'))/J_LR#np.sqrt(g22_LR)
-      curl_z = (dirder(g21_UD * avg(avg(fieldx, 'LR2C'),'C2UD'), 'UD2N') + dirder(g22_UD * fieldy, 'UD2N') + dirder(g13_UD * avg(fieldz, 'C2UD'), 'UD2N')
-              - dirder(g11_LR * fieldx, 'LR2N') + dirder(g12_LR * avg(avg(fieldy, 'UD2C'), 'C2LR'), 'LR2N') + dirder(g13_LR * avg(fieldz, 'C2LR'), 'LR2N'))/J_N#np.sqrt(g33_N)
+        fieldx_C = avg(fieldx, 'LR2C')
+        fieldy_C = avg(fieldy, 'UD2C')
+        fieldx_UD = avg(avg(fieldx, 'LR2C'), 'C2UD')
+        fieldz_UD = avg(fieldz, 'C2UD')
+        fieldy_LR = avg(avg(fieldy, 'UD2C'), 'C2LR')
+        fieldz_LR = avg(fieldz, 'C2LR')
+
+        curl_x =   dirder(g31_C * fieldx_C + g32_C * fieldy_C + g33_C * fieldz, 'C2UD')/J_UD
+        curl_y = - dirder(g31_C * fieldx_C + g32_C * fieldy_C + g33_C * fieldz, 'C2LR')/J_LR
+        curl_z =   dirder(g21_UD * fieldx_UD + g22_UD * fieldy + g23_UD * fieldz_UD, 'UD2N')/J_N\
+                 - dirder(g11_LR * fieldx + g12_LR * fieldy_LR + g13_LR * fieldz_LR, 'LR2N')/J_N
     elif fieldtype == 'B':
-      curl_x =   (dirder(g31_N * avg(fieldx, 'UD2N'), 'N2LR') + dirder(g32_N * avg(fieldy, 'LR2N'), 'N2LR') + dirder(g33_N * fieldz, 'N2LR'))/J_LR#np.sqrt(g11_LR)
-      curl_y = - (dirder(g31_N * avg(fieldx, 'UD2N'), 'N2UD') + dirder(g32_N * avg(fieldy, 'LR2N'), 'N2UD') + dirder(g33_N * fieldz, 'N2UD'))/J_UD#np.sqrt(g22_UD)
-      curl_z = (dirder(g21_LR * avg(avg(fieldx, 'UD2N'), 'N2LR'), 'LR2C') + dirder(g22_LR * fieldy, 'LR2C') + dirder(J_LR * g13_LR * avg(fieldz, 'N2LR'), 'LR2C')
-              - dirder(g11_UD * fieldx, 'UD2C') + dirder(g12_UD * avg(avg(fieldy, 'LR2N'), 'N2UD'), 'UD2C') + dirder(g13_UD * avg(fieldz, 'N2UD'), 'UD2C'))/J_C#np.sqrt(g33_C)
+        fieldx_N = avg(fieldx, 'UD2N')
+        fieldy_N = avg(fieldy, 'LR2N')
+        fieldx_LR = avg(avg(fieldx, 'UD2N'), 'N2LR')
+        fieldz_LR = avg(fieldz, 'N2LR')
+        fieldy_UD = avg(avg(fieldy, 'LR2N'), 'N2UD')
+        fieldz_UD = avg(fieldz, 'N2UD')
+        
+        curl_x =   dirder(g31_N * fieldx_N + g32_N * fieldy_N + J33_N * fieldz, 'N2LR')/J_LR
+        curl_y = - dirder(g31_N * fieldx_N + g32_N * fieldy_N + g33_N * fieldz, 'N2UD')/J_UD
+        curl_z =   dirder(g21_LR * fieldx_LR + g22_LR * fieldy + g23_LR * fieldz_LR, 'LR2C')/J_C\
+                 - dirder(g11_UD * fieldx + g12_UD * fieldy_UD + g13_UD * fieldz_UD, 'UD2C')/J_C
+    
     return curl_x, curl_y, curl_z
 
+def div_normalised(fieldx, fieldy, fieldz, fieldtype):
+    ''' To take the divergence of either E or B in Skew coord. and normalise the covector to vector (coV = V/||x_xi||)
+    div = 1/J·d_i(J·A^i)
+    fieltype=='E': input -> LR,UD,c, output -> c,c,c
+    fieltype=='B': input -> UD,LR,n, output -> n,n,n
+    '''
+    nx1_UD = norm(J11_UD, J21_UD, J31_UD)
+    nx1_LR = norm(J11_LR, J21_LR, J31_LR)
+    nx2_UD = norm(J12_UD, J22_UD, J32_UD)
+    nx2_LR = norm(J12_LR, J22_LR, J32_LR)
+    if fieldtype == 'E':
+        div = (dirder(J_LR * fieldx / nx1_LR, 'LR2C') + dirder(J_UD * fieldy / nx2_UD, 'UD2C'))/J_C
+
+    elif fieldtype == 'B':
+        div = (dirder(J_UD * fieldx / nx1_UD, 'UD2N') + dirder(J_LR * fieldy / nx2_LR, 'LR2N'))/J_N
+
+    return div
+
 def div(fieldx, fieldy, fieldz, fieldtype):
-    ''' To take the divergence of either E or B
+    ''' To take the divergence of either E or B in in Skew coord.
+    div = 1/J·d_i(J·A^i)
     fieltype=='E': input -> LR,UD,c, output -> c,c,c
     fieltype=='B': input -> UD,LR,n, output -> n,n,n
     '''
     if fieldtype == 'E':
-        div = (dirder(J_LR*fieldx, 'LR2C') + dirder(J_UD*fieldy, 'UD2C'))/J_C
+        div = (dirder(J_LR * fieldx, 'LR2C') + dirder(J_UD * fieldy, 'UD2C'))/J_C
 
     elif fieldtype == 'B':
-        div = (dirder(J_UD*fieldx, 'UD2N') + dirder(J_LR*fieldy, 'LR2N'))/J_N
+        div = (dirder(J_UD * fieldx, 'UD2N') + dirder(J_LR * fieldy, 'LR2N'))/J_N
 
     return div
 
@@ -870,7 +958,6 @@ def residual(xkrylov):
     #                   curlE       curlB
     #                               J/xgen1
     #                   Ep/Bp/xgen2
-
 
     xnew = x + unew*dt
     ynew = y + vnew*dt
@@ -932,11 +1019,7 @@ def residual(xkrylov):
     ykrylov = phys_to_krylov(resE1, resE2, resE3, resu, resv, resw)
     return ykrylov
 
-
-
-
-
-"""
+'''
 global E1, E2, E3, B1, B2, B3, x, y, u, v, w, QM, q, npart, dt
 E1new, E2new, E3new, unew, vnew, wnew = krylov_to_phys(xkrylov)
 # method:       YEE          Fabio's YEE
@@ -1017,9 +1100,7 @@ resw = wnew - w - QM * (Ezp + ubar/gbar*Byp - vbar/gbar*Bxp)*dt
 
 ykrylov = phys_to_krylov(resE1,resE2,resE3,resu,resv,resw)
 return  ykrylov
-"""
-
-
+'''
 
 def grid_to_particle(xk, yk, f, gridtype):
     ''' Interpolation of grid quantity to particle
@@ -1171,12 +1252,12 @@ def particle_to_grid_J(xk, yk, uk, vk, wk, qk):
 
 define_geometry()
 
-print(g11_C)
-print(g12_C)
-print(g13_C)
-print(g22_C)
-print(g23_C)
-print(g33_C)
+#print(g11_C)
+#print(g12_C)
+#print(g13_C)
+#print(g22_C)
+#print(g23_C)
+#print(g33_C)
 
 #if perturb:
 #    xgen, ygen = cartesian_to_general_particle(x, y)
@@ -1295,7 +1376,6 @@ print(g33_C)
 #
 #cpu_time = zeros(nt+1, np.float64)
 
-
 #print('cycle 0, energy=',histEnergyTot[0])
 #print('energyP1=',histEnergyP1[0],'energyP2=',histEnergyP2[0])
 #print('energyEx=',histEnergyE1[0],'energyEy=',histEnergyE2[0],'energyEz=',histEnergyE3[0])
@@ -1370,14 +1450,22 @@ for it in range(0,nt):
     B1bar = (B1new + B1)/2.
     B2bar = (B2new + B2)/2.
     B3bar = (B3new + B3)/2.
+
     E1old = E1
     E2old = E2
     E3old = E3
+    E3old = E3
+
+    B1old = B1
+    B2old = B2
+    B3old = B3
+
     x = xnew
     y = ynew
     u = unew
     v = vnew
     w = wnew
+
     E1 = E1new
     E2 = E2new
     E3 = E3new
@@ -1474,26 +1562,47 @@ for it in range(0,nt):
 #        print('energyB=',histEnergyB[it])
 #        print('relative energy change=',(histEnergyTot[it]-histEnergyTot[0])/histEnergyTot[0])
 #        print('momento totale= ', histMomentumTot[it])
+    
     if perturb:
         # Energy -> defined in C
-        energyE1[it]= np.sum(J_C * g11_C * avg(E1old**2, 'LR2C') \
-                        + J_C * g12_C * avg(E1old, 'LR2C') * avg(E2old, 'UD2C'))/2.*dx*dy# \
-                        #+ J_C * g13_C * avg(E1, 'LR2C') * E3)/2.*dx*dy 
-        energyE2[it]= np.sum(J_C * g21_C * avg(E2old, 'UD2C') * avg(E1old, 'LR2C') \
-                         + J_C * g22_C * avg(E2old**2, 'UD2C'))/2.*dx*dy# \
-                        #+ J_C * g23_C * avg(E2, 'UD2C') * E3)/2.*dx*dy 
-        energyE3[it]= np.sum(#J_C * g31_C * E3 * avg(E1, 'LR2C') \
-                       #+ J_C * g32_C * E3 * avg(E2, 'UD2C') \
-                       + J_C * g33_C * E3old**2)/2.*dx*dy
-        energyB1[it]= np.sum(J_C * g11_C * avg(B1bar, 'UD2C')**2 \
-                       + J_C * g12_C * avg(B1bar, 'UD2C') * avg(B2bar, 'LR2C'))/2.*dx*dy# \
-                       #+ J_C * g13_C * avg(B1, 'UD2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy 
+
+        #energyE1[it]= np.sum(J_C * g11_C * avg(E1**2, 'LR2C') \
+        #                + J_C * g12_C * avg(E1, 'LR2C') * avg(E2, 'UD2C'))/2.*dx*dy# \
+        #                #+ J_C * g13_C * avg(E1, 'LR2C') * E3)/2.*dx*dy 
+        #energyE2[it]= np.sum(J_C * g21_C * avg(E2, 'UD2C') * avg(E1, 'LR2C') \
+        #                 + J_C * g22_C * avg(E2**2, 'UD2C'))/2.*dx*dy# \
+        #                #+ J_C * g23_C * avg(E2, 'UD2C') * E3)/2.*dx*dy 
+        #energyE3[it]= np.sum(#J_C * g31_C * E3 * avg(E1, 'LR2C') \
+        #               #+ J_C * g32_C * E3 * avg(E2, 'UD2C') \
+        #               + J_C * g33_C * E3**2)/2.*dx*dy
+        #energyB1[it]= np.sum(J_C * g11_C * avg(B1*B1old, 'UD2C') \
+        #               + J_C * g12_C * avg(B1old, 'UD2C') * avg(B2, 'LR2C'))/2.*dx*dy# \
+        #               #+ J_C * g13_C * avg(B1, 'UD2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy 
+        #energyB2[it]= np.sum(J_C * g21_C * avg(B2old, 'LR2C') * avg(B1, 'UD2C')\
+        #                 + J_C * g22_C * avg(B2 * B2old, 'LR2C'))/2.*dx*dy  # \
+        #               #+ J_C * g23_C * avg(B2, 'LR2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy 
+        #energyB3[it]= np.sum(#J_C * g31_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B1, 'UD2C') \
+        #               #+ J_C * g32_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B2, 'LR2C') \
+        #               + J_C * g33_C * avg(avg(B3*B3old, 'N2LR'), 'LR2C'))/2.*dx*dy
+
+        energyE1[it]= np.sum(J_C * g11_C * avg(E1**2, 'LR2C') \
+                           + J_C * g12_C * avg(E1, 'LR2C') * avg(E2, 'UD2C') \
+                           + J_C * g13_C * avg(E1, 'LR2C') * E3)/2.*dx*dy 
+        energyE2[it]= np.sum(J_C * g21_C * avg(E2, 'UD2C') * avg(E1, 'LR2C') \
+                           + J_C * g22_C * avg(E2**2, 'UD2C') \
+                           + J_C * g23_C * avg(E2, 'UD2C') * E3)/2.*dx*dy 
+        energyE3[it]= np.sum(J_C * g31_C * E3 * avg(E1, 'LR2C') \
+                           + J_C * g32_C * E3 * avg(E2, 'UD2C') \
+                           + J_C * g33_C * E3**2)/2.*dx*dy
+        energyB1[it]= np.sum(J_C * g11_C * avg(B1bar**2, 'UD2C') \
+                           + J_C * g12_C * avg(B1bar, 'UD2C') * avg(B2bar, 'LR2C') \
+                           + J_C * g13_C * avg(B1, 'UD2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy 
         energyB2[it]= np.sum(J_C * g21_C * avg(B2bar, 'LR2C') * avg(B1bar, 'UD2C')\
-                         + J_C * g22_C * avg(B2bar**2, 'LR2C'))/2.*dx*dy  # \
-                       #+ J_C * g23_C * avg(B2, 'LR2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy 
-        energyB3[it]= np.sum(#J_C * g31_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B1, 'UD2C') \
-                       #+ J_C * g32_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B2, 'LR2C') \
-                       + J_C * g33_C * avg(avg(B3bar**2, 'N2LR'), 'LR2C'))/2.*dx*dy
+                           + J_C * g22_C * avg(B2bar**2, 'LR2C') \
+                           + J_C * g23_C * avg(B2, 'LR2C') * avg(avg(B3, 'N2LR'), 'LR2C'))/2.*dx*dy 
+        energyB3[it]= np.sum(J_C * g31_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B1, 'UD2C') \
+                           + J_C * g32_C * avg(avg(B3, 'N2LR'), 'LR2C') * avg(B2, 'LR2C') \
+                           + J_C * g33_C * avg(avg(B3bar**2, 'N2LR'), 'LR2C'))/2.*dx*dy
     else:
         energyE1 = np.sum(E1[0:nxn-1,:]**2)/2.*dx*dy
         energyE2 = np.sum(E2[:,0:nyn-1]**2)/2.*dx*dy
@@ -1503,6 +1612,11 @@ for it in range(0,nt):
         energyB3 = np.sum(B3[0:nxn-1,0:nyn-1]**2)/2.*dx*dy
     
     energyTot[it] = energyP1[it] + energyP2[it] + energyE1[it] + energyE2[it] + energyE3[it] + energyB1[it] + energyB2[it] + energyB3[it]
+    
+    if it==0:
+        err_en[it] = 0.
+    else:
+        err_en[it] = (energyTot[it] - energyTot[it-1])/energyTot[it-1]
 
     momentumx = np.sum(unew[0:npart])
     momentumy = np.sum(vnew[0:npart])   
@@ -1614,6 +1728,7 @@ for it in range(0,nt):
         if (it % every == 0) or (it == 1):
             plt.savefig(filename1, dpi=ndpi)
         plt.pause(0.00000001)
+
     if (it % every == 0) or (it == 1):
         '''
         if nppc!=0:
@@ -1646,28 +1761,17 @@ for it in range(0,nt):
 
 stop = time.time()
 if plot_dir == True:
-    #if perturb:
-    #    myplot_func(histEnergyB,  title='Energy B', xlabel='t', ylabel='U_mag')
-    #    filename1 = PATH1 + '@energy_mag_' + '%04d'%it + '.png'
-    #    plt.savefig(filename1, dpi=ndpi)
-
-    #    myplot_func(histEnergyE,  title='Energy E', xlabel='t', ylabel='U_el')
-    #    filename1 = PATH1 + '@energy_elec_' + '%04d'%it + '.png'
-    #    plt.savefig(filename1, dpi=ndpi)
-    #else:
-    myplot_func((energyTot-energyTot[0])/energyTot[0], title='Relative error on total energy', xlabel='t', ylabel='err(E)')
-    filename1 = PATH1 + '@error_rel_' + '%04d' % it + '.png'
+    myplot_func(energyTot, title='Total Energy', xlabel='t', ylabel='U_Tot')
+    filename1 = PATH1 + '@energy_tot_' + '%04d' % it + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
     myplot_func((energyTot-energyTot[0])/energyTot[0], title='Relative error on total energy', xlabel='t', ylabel='err(E)')
-    filename1 = PATH1 + '@error_rel_' + '%04d' % it + '.png'
+    filename1 = PATH1 + '@error_rel_E[0]_' + '%04d' % it + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
-    ##np.abs(histEnergyTot[it-1]-histEnergyTot[it])/histEnergyTot[it]
-    #myplot_func((histEnergyTot-histEnergyTot[it-1])/histEnergyTot[it-1],
-    #            title='Total energy error', xlabel='t', ylabel='err(E)')
-    #filename1 = PATH1 + '@error_' + '%04d' % it + '.png'
-    #plt.savefig(filename1, dpi=ndpi)
+    myplot_func(err_en, title='E[t]–E[t-1]/E[t-1]', xlabel='t', ylabel='err(E)')
+    filename1 = PATH1 + '@error_rel_E[t-1]_' + '%04d' % it + '.png'
+    plt.savefig(filename1, dpi=ndpi)
 
     myplot_func(energyB,  title='Energy B', xlabel='t', ylabel='U_mag')
     filename1 = PATH1 + '@energy_mag_' + '%04d'%it + '.png'
@@ -1679,10 +1783,6 @@ if plot_dir == True:
 
     myplot_func(energyP,  title='Energy Part.', xlabel='t', ylabel='U_part')
     filename1 = PATH1 + '@energy_part_' + '%04d'%it + '.png'
-    plt.savefig(filename1, dpi=ndpi)
-
-    myplot_func(energyTot, title='Total Energy', xlabel='t', ylabel='U_Tot')
-    filename1 = PATH1 + '@energy_total_' + '%04d' % it + '.png'
     plt.savefig(filename1, dpi=ndpi)
 
     myplot_func(momentumTot, title='Momentum', xlabel='t', ylabel='p')
