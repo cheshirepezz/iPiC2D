@@ -41,7 +41,7 @@ nxn, nyn = nxc+1, nyc+1
 Lx, Ly = 10., 10.
 dx, dy = Lx/nxc, Ly/nyc
 dt = 0.05
-nt = 400
+nt = 200
 
 ndpi = 100                  # number of dpi per img (stay low 100 for monitoring purpose!)
 every = 200                 # how often to plot
@@ -861,7 +861,7 @@ def avg(field, avgtype):
     return avgfield
 
 def curl_normalised(fieldx, fieldy, fieldz, fieldtype):
-    ''' To take the curl of either E or B in Skew coordinate and normalise the covector to vector (coV = V/||x_xi||)
+    ''' To take the curl of either E or B in General coordinate and normalise the covector to vector (coV = V/||x_xi||)
     curl^i = 1/J·(d_j·g_kq·A^q - d_k·g_jq·A^q)
     fieltype=='E': input -> LR,UD,c, output -> UD,LR,n
     fieltype=='B': input -> UD,LR,n, output -> LR,UD,c
@@ -902,7 +902,7 @@ def curl_normalised(fieldx, fieldy, fieldz, fieldtype):
         fieldy_UD = avg(avg(fieldy, 'LR2N'), 'N2UD')
         fieldz_UD = avg(fieldz, 'N2UD')
         
-        curl_x =   dirder(g31_N * fieldx_N / nx1_N + g32_N * fieldy_N / nx2_N + J33_N * fieldz / nx3_N, 'N2LR')/J_LR*nx1_LR
+        curl_x =   dirder(g31_N * fieldx_N / nx1_N + g32_N * fieldy_N / nx2_N + g33_N * fieldz / nx3_N, 'N2LR')/J_LR*nx1_LR
         curl_y = - dirder(g31_N * fieldx_N / nx1_N + g32_N * fieldy_N / nx2_N + g33_N * fieldz / nx3_N, 'N2UD')/J_UD*nx2_UD
         curl_z =   dirder(g21_LR * fieldx_LR / nx1_LR + g22_LR * fieldy / nx2_LR + g23_LR * fieldz_LR / nx3_LR, 'LR2C')/J_C*nx3_C\
                  - dirder(g11_UD * fieldx / nx1_UD + g12_UD * fieldy_UD / nx2_UD + g13_UD * fieldz_UD / nx3_UD, 'UD2C')/J_C*nx3_C
@@ -910,7 +910,7 @@ def curl_normalised(fieldx, fieldy, fieldz, fieldtype):
     return curl_x, curl_y, curl_z
 
 def curl(fieldx, fieldy, fieldz, fieldtype):
-    ''' To take the curl of either E or B in Skew coord.
+    ''' To take the curl of either E or B in General coord.
     curl^i = 1/J·(d_j·g_kq·A^q - d_k·g_jq·A^q)
     fieltype=='E': input -> LR,UD,c, output -> UD,LR,n
     fieltype=='B': input -> UD,LR,n, output -> LR,UD,c
@@ -935,7 +935,7 @@ def curl(fieldx, fieldy, fieldz, fieldtype):
         fieldy_UD = avg(avg(fieldy, 'LR2N'), 'N2UD')
         fieldz_UD = avg(fieldz, 'N2UD')
         
-        curl_x =   dirder(g31_N * fieldx_N + g32_N * fieldy_N + J33_N * fieldz, 'N2LR')/J_LR
+        curl_x =   dirder(g31_N * fieldx_N + g32_N * fieldy_N + g33_N * fieldz, 'N2LR')/J_LR
         curl_y = - dirder(g31_N * fieldx_N + g32_N * fieldy_N + g33_N * fieldz, 'N2UD')/J_UD
         curl_z =   dirder(g21_LR * fieldx_LR + g22_LR * fieldy + g23_LR * fieldz_LR, 'LR2C')/J_C\
                  - dirder(g11_UD * fieldx + g12_UD * fieldy_UD + g13_UD * fieldz_UD, 'UD2C')/J_C
@@ -943,7 +943,7 @@ def curl(fieldx, fieldy, fieldz, fieldtype):
     return curl_x, curl_y, curl_z
 
 def div_normalised(fieldx, fieldy, fieldz, fieldtype):
-    ''' To take the divergence of either E or B in Skew coord. and normalise the covector to vector (coV = V/||x_xi||)
+    ''' To take the divergence of either E or B in General coord. and normalise the covector to vector (coV = V/||x_xi||)
     div = 1/J·d_i(J·A^i)
     fieltype=='E': input -> LR,UD,c, output -> c,c,c
     fieltype=='B': input -> UD,LR,n, output -> n,n,n
@@ -961,7 +961,7 @@ def div_normalised(fieldx, fieldy, fieldz, fieldtype):
     return div
 
 def div(fieldx, fieldy, fieldz, fieldtype):
-    ''' To take the divergence of either E or B in in Skew coord.
+    ''' To take the divergence of either E or B in in General coord.
     div = 1/J·d_i(J·A^i)
     fieltype=='E': input -> LR,UD,c, output -> c,c,c
     fieltype=='B': input -> UD,LR,n, output -> n,n,n
