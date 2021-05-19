@@ -27,31 +27,31 @@ TODO
  - Emission?
 '''
 
-import numpy as np
 from scipy.optimize import newton_krylov, minimize
+import seaborn as sns, pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
 import time
 
 PATH1 = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/figures/'
 
 # method flags
-pic              = True     # True -> particles & fields; False -> only fields
+pic              = False    # True -> particles & fields; False -> only fields
 Picard           = True     # Picard iteration
 NK_method        = False    # Newton Krylov non linear solver
 # metric flag
-metric           = False    # activate non-identity metric tensor
+metric           = True     # activate non-identity metric tensor
 skew             = False    # perturbed metric: skew in the eta axes
 squared          = False    # squared cartesian x^2, y^2, z
-CandC            = False    # harmonically perturbed metric: Chacoon and Chen 2016
+CandC            = True     # harmonically perturbed metric: Chacoon and Chen 2016
 # fields only 
-pert_delta       = False    # delta function in the centre of the dom. (B field pert.)
+pert_delta       = True     # delta function in the centre of the dom. (B field pert.)
 pert_sin         = False    # double sinusoidal function (B field pert.)
 # plasma flags
-electron_and_ion = True     # background of ions when QM1=QM2=-1
-stable_plasma    = True     # stable plasma set up
+electron_and_ion = False    # background of ions when QM1=QM2=-1
+stable_plasma    = False    # stable plasma set up
 harmonic         = False    # harmonic oscillator -> initial particle velocity VTH along x
-stream_inst      = False    # counterstream inst. set up
+stream_inst      = True     # counterstream inst. set up
 landau_damping   = False    # landau damping set up
 relativistic     = False    # relativisitc  set up
 # plot flags   
@@ -61,10 +61,10 @@ plot_save        = True     # to save the plots in PATH1
 plot_each        = False    # to visualise each time step (memory consuming)
 
 # parameters to change
-nt = 300                    # number of time steps
-nx, ny = 50, 50             # number of grid points
-ndpi = 300                  # number of dpi per img (stay low 100 for monitoring purpose!)
-every = 100                 # how often to plot
+nt = 100                    # number of time steps
+nx, ny = 20, 20             # number of grid points
+ndpi = 100                  # number of dpi per img (stay low 100 for monitoring purpose!)
+every = 10                  # how often to plot
 eps = 0.5                   # amplitude of the pertutbation in CandC
 theta = np.pi/4.            # angle of skewness
 n = 1.                      # mode of oscillation in double sinusoidal B pert (field only)
@@ -139,20 +139,22 @@ u = np.zeros(npart, np.float64)
 if harmonic:
     u[0:npart1] = VT1
     u[npart1:npart] = VT2
-if stable_plasma: 
+elif stable_plasma: 
     u[0:npart1] = VT1*np.random.randn(npart1)
     u[npart1:npart] = VT2*np.random.randn(npart2)
-if stream_inst:
+elif stream_inst:
+    #u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
+    #u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
     u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
-    u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
+    u[npart1:npart] = V0x1+VT1*np.random.randn(npart2)
     u[1:npart:2] = - u[1:npart:2] # velocity in the odd position are negative
-    np.random.shuffle(u) # to guarantee 50% of +u0 to e- and the other 50% to e+ and same fo -u0
+    #np.random.shuffle(u) # to guarantee 50% of +u0 to e- and the other 50% to e+ and same fo -u0
 
 v = np.zeros(npart, np.float64)
 if stable_plasma:
     v[0:npart1] = VT1*np.random.randn(npart1)
     v[npart1:npart] = VT2*np.random.randn(npart2)
-if landau_damping:
+elif landau_damping:
     v[0:npart1] = V0y1+VT1*np.sin(x[0:npart1]/Lx)
     v[npart1:npart] = V0y2+VT2*np.sin(x[npart1:npart]/Lx)
 
@@ -411,14 +413,17 @@ def myplot_particle_map(posx, posy):
     #plt.title('Particles map')
 
 def myplot_particle_hystogram(velocity):
-    # plot distplot
-    fig, ax = plt.subplots()
-    sns.distplot(velocity, ax = ax)
-    ax.set_xlim(1, 70) # limits of the x-axis
+    plt.figure()
+    plt.hist(velocity, bins=40, align='right', edgecolor='black')
+    plt.xlabel(r'$|v|$')
+    plt.ylabel('frequency')
+
+def myplot_particle_hystogram_sns(vel):
+    vel = pd.Series(vel, name="x variable")
+    ax = sns.distplot(vel)
     ax.set_xlabel( r"$|v|$") 
     ax.set_ylabel( "Frequency") 
-    #ax.set_title( "GFG - GFG")  
-
+    
 def myplot_phase_space(pos, vel, limx=(0, 0), limy=(0, 0), xlabel='b', ylabel='c'):
     '''To plot the phase space in one direction
     '''
@@ -2015,7 +2020,7 @@ for it in range(1,nt+1):
     momentumy = np.sum(vnew[0:npart])   
     momentumz = np.sum(wnew[0:npart])
     momentumTot = momentumx + momentumy + momentumz
-    mod_vel[0:npart] = np.sqrt(unew[0:npart]**2 + vnew[0:npart]**2 + wnew[0:npart]**2)
+    mod_vel = np.sqrt(unew**2 + vnew**2 + wnew**2)
 
     histEnergyP1.append(energyP1)
     histEnergyP2.append(energyP2)
@@ -2223,8 +2228,20 @@ for it in range(1,nt+1):
             
         if (it % every == 0) or (it == 1):
             if nppc!=0:
-                myplot_particle_hystogram(mod_vel)
-                filename1 = PATH1 + 'part_hystogram_' + '%04d'%it + '.png'
+                #myplot_particle_hystogram(mod_vel)
+                #filename1 = PATH1 + 'part_hyst_mod_' + '%04d'%it + '.png'
+                #plt.savefig(filename1, dpi=ndpi) 
+
+                myplot_particle_hystogram(unew)
+                filename1 = PATH1 + 'part_hyst_u_' + '%04d'%it + '.png'
+                plt.savefig(filename1, dpi=ndpi) 
+
+                myplot_particle_hystogram(vnew)
+                filename1 = PATH1 + 'part_hyst_v_' + '%04d'%it + '.png'
+                plt.savefig(filename1, dpi=ndpi) 
+
+                myplot_particle_hystogram(wnew)
+                filename1 = PATH1 + 'part_hyst_w_' + '%04d'%it + '.png'
                 plt.savefig(filename1, dpi=ndpi) 
 
                 myplot_particle_map(x, y)
