@@ -9,11 +9,11 @@
 '''
 TODO 
 (Priority):
- - Particle -> study particles VDF (Histogram)
  - Energy definition, Delta enegry -> Surface integral
  - Particle -> add J·E to the flux (Poynting theorem)
- - Flux map -> Ucolored pixel in the bottom left Boundary (-1 <-> nxc)
+ - Flux map -> Ucolored pixel in the bottom left Boundary (-1 <-> nxc Pb?)
  - Add a colorbar in the scatterpot for the computational space
+ - Extended to 1d
  (- BE CAREFUL -> roduct of avg or avg of the product)
 
 (Future steps):
@@ -36,24 +36,28 @@ import time
 PATH1 = '/Users/luca_pezzini/Documents/Code/cov_pic-2d/figures/'
 
 # method flags
-pic              = False    # True -> particles & fields; False -> only fields
+pic              = True     # True -> particles & fields; False -> only fields
 Picard           = True     # Picard iteration
 NK_method        = False    # Newton Krylov non linear solver
+
 # metric flag
-metric           = True     # activate non-identity metric tensor
+metric           = False    # True -> activate non-identity metric tensor (False = Cartesian)
 skew             = False    # perturbed metric: skew in the eta axes
-squared          = False    # squared cartesian x^2, y^2, z
-CandC            = True     # harmonically perturbed metric: Chacoon and Chen 2016
+squared          = False    # squared cartesian x^2, y^2, 1
+CandC            = False    # harmonic perturbed metric: Chacoon and Chen 2016
+
 # fields only 
-pert_delta       = True     # delta function in the centre of the dom. (B field pert.)
+pert_delta       = False    # delta function in the centre of the dom. (B field pert.)
 pert_sin         = False    # double sinusoidal function (B field pert.)
+
 # plasma flags
-electron_and_ion = False    # background of ions when QM1=QM2=-1
-stable_plasma    = False    # stable plasma set up
+ion_bkg          = False    # False -> QM1=-1 QM2=+1 (two species); True -> QM1=QM2=-1 (electrons \wion bkg)
+stable_plasma    = True     # stable plasma set up
 harmonic         = False    # harmonic oscillator -> initial particle velocity VTH along x
-stream_inst      = True     # counterstream inst. set up
+stream_inst      = False    # counterstream inst. set up
 landau_damping   = False    # landau damping set up
 relativistic     = False    # relativisitc  set up
+
 # plot flags   
 file_log         = True     # to save the log file in PATH1
 data_save        = True     # to save data a .dat in PATH1
@@ -62,17 +66,19 @@ plot_each        = False    # to visualise each time step (memory consuming)
 
 # parameters to change
 nt = 100                    # number of time steps
-nx, ny = 20, 20             # number of grid points
-ndpi = 100                  # number of dpi per img (stay low 100 for monitoring purpose!)
-every = 10                  # how often to plot
-eps = 0.5                   # amplitude of the pertutbation in CandC
+nx, ny = 16, 16             # number of grid points
+ndpi = 300                  # number of dpi per img (stay low 100 for monitoring purpose!)
+every = 100                 # how often to plot
+eps = 0.2                   # amplitude of the pertutbation in CandC
 theta = np.pi/4.            # angle of skewness
 n = 1.                      # mode of oscillation in double sinusoidal B pert (field only)
 B0 = 0.01                   # B field perturbation amplitude (field only)
 V0 = 1.                     # stream velocity magnitude
 alpha = 0.1                 # attenuation of VT respect V0
+pcs = 16                    # number particles per cell per species
 
-# dont't touch from now on!
+# !be careful to modify from now on!
+
 nxc, nyc = nx, ny
 nxn, nyn = nxc+1, nyc+1
 Lx, Ly = 10., 10.
@@ -85,11 +91,11 @@ else:
 # Constaint: nppc must be a squarable number (4, 16, 64) because particles are 
 #            spread over a squared grid
 if pic:
-    nppc = 4                # number particles per cell per species
+    nppc = pcs              # number particles per cell per species
 else:
     nppc = 0                # fields only
 
-# Species 1
+# Species 1:
 npart1 = nx * ny * nppc
 WP1 = 1.                    # plasma frequency
 QM1 = -1.                   # charge/mass ratio
@@ -98,10 +104,13 @@ V0y1 = V0                   # stream velocity
 V0z1 = V0                   # stream velocity
 VT1 = alpha*V0              # thermal velocity
 
-# Species 2
+# Species 2:
 npart2 = npart1
 WP2 = 1.                    # plasma frequency
-QM2 = -1.                   # charge/mass ratio
+if ion_bkg:
+    QM2 = -1.               # negative charge/mass ratio 
+else:
+    QM2 = +1.               # positive charge/mass ratio
 V0x2 = V0                   # stream velocity
 V0y2 = V0                   # stream velocity
 V0z2 = V0                   # stream velocity
@@ -146,7 +155,7 @@ elif stream_inst:
     #u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
     #u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
     u[0:npart1] = V0x1+VT1*np.random.randn(npart1)
-    u[npart1:npart] = V0x1+VT1*np.random.randn(npart2)
+    u[npart1:npart] = V0x2+VT2*np.random.randn(npart2)
     u[1:npart:2] = - u[1:npart:2] # velocity in the odd position are negative
     #np.random.shuffle(u) # to guarantee 50% of +u0 to e- and the other 50% to e+ and same fo -u0
 
@@ -341,7 +350,7 @@ if file_log == True:
     print('- mode of oscillation n (if nppc=0): ', n, file=f)
     print('- stable plasma: ', stable_plasma, file=f)
     print('- harmonic oscillator: ', harmonic, file=f)
-    print('- electrons & ions: ', electron_and_ion, file=f)
+    print('- electrons & ions: ', ion_bkg, file=f)
     print('- counter stream inst.: ', stream_inst, file=f)
     print('- landau damping: ', landau_damping, file=f)
     print('- relativistic: ', relativistic, file=f)
@@ -418,8 +427,8 @@ def myplot_particle_hystogram(velocity):
     plt.xlabel(r'$|v|$')
     plt.ylabel('frequency')
 
-def myplot_particle_hystogram_sns(vel):
-    vel = pd.Series(vel, name="x variable")
+def myplot_particle_hystogram_sns(velocity):
+    vel = pd.Series(velocity, name="x variable")
     ax = sns.distplot(vel)
     ax.set_xlabel( r"$|v|$") 
     ax.set_ylabel( "Frequency") 
@@ -1283,7 +1292,7 @@ def particle_to_grid_rho(xk, yk, q):
         rho[i1, j2] += wx1 * wy2 * q[i]
         rho[i2, j2] += wx2 * wy2 * q[i]
       
-    if electron_and_ion:
+    if ion_bkg:
         rho += rho_ion
 
     return rho 
@@ -1471,8 +1480,7 @@ def poynting_flux():
           - (g11D*E1D + g12D*E2D + g13D*E3D) * (g31D*B1D + g32D*B2D + g33D*B3D)
     fluxU = (g31U*E1U + g32U*E2U + g33U*E3U) * (g11U*B1U + g12U*B2U + g13U*B3U)\
           - (g11U*E1U + g12U*E2U + g13U*E3U) * (g31U*B1U + g32U*B2U + g33U*B3U)
-
-
+    
     # Why if we substitute -1 with nyc is dimentional problematic? 
     fluxUD[0:nxc, 0] = fluxD[0:nxc, 0] - fluxU[0:nxc, -1]
     fluxUD[0:nxc, 1:nyc] = fluxD[0:nxc, 1:nyc] - fluxU[0:nxc, 0:nyc-1]
@@ -1723,8 +1731,8 @@ else:
 
 histEnergyTot=[histEnergyP1[0]+histEnergyP2[0]+histEnergyE1[0]+histEnergyE2[0]+histEnergyE3[0]+histEnergyB1[0]+histEnergyB2[0]+histEnergyB3[0]]
 
-histMomentumx = [np.sum(u[0:npart])]
-histMomentumy = [np.sum(v[0:npart])]
+histMomentumx = [np.sum(u[0:npart])/VT1]
+histMomentumy = [np.sum(v[0:npart])/VT2]
 histMomentumz = [np.sum(w[0:npart])]
 histMomentumTot = [histMomentumx[0] + histMomentumy[0] + histMomentumz[0]]
 
@@ -1736,7 +1744,7 @@ print('cycle 0, energy=',histEnergyTot[0])
 print('energyP1=',histEnergyP1[0],'energyP2=',histEnergyP2[0])
 print('energyEx=',histEnergyE1[0],'energyEy=',histEnergyE2[0],'energyEz=',histEnergyE3[0])
 print('energyBx=',histEnergyB1[0],'energyBy=',histEnergyB2[0],'energyBz=',histEnergyB3[0])
-print('Momentumx=',histMomentumx[0],'Momentumy=',histMomentumy[0],'Momentumz=',histMomentumz[0])
+print('momentumx=',histMomentumx[0],'momentumy=',histMomentumy[0],'momentumz=',histMomentumz[0])
   
 if metric:
     xgen, ygen = cartesian_to_general_particle(x, y)
@@ -2016,8 +2024,8 @@ for it in range(1,nt+1):
     
     energyTot = energyP1 + energyP2 + energyE1 + energyE2 + energyE3 + energyB1 + energyB2 + energyB3
 
-    momentumx = np.sum(unew[0:npart])
-    momentumy = np.sum(vnew[0:npart])   
+    momentumx = np.sum(unew[0:npart]/VT1)
+    momentumy = np.sum(vnew[0:npart]/VT2)   
     momentumz = np.sum(wnew[0:npart])
     momentumTot = momentumx + momentumy + momentumz
     mod_vel = np.sqrt(unew**2 + vnew**2 + wnew**2)
@@ -2048,7 +2056,7 @@ for it in range(1,nt+1):
     print('energyE1=',histEnergyE1[it],'energyE2=',histEnergyE2[it],'energyE3=',histEnergyE3[it])
     print('energyB1=',histEnergyB1[it],'energyB2=',histEnergyB2[it],'energyB3=',histEnergyB3[it])
     print('relative energy change=',(histEnergyTot[it]-histEnergyTot[0])/histEnergyTot[0])
-    print('momento totale= ', histMomentumTot[it])
+    print('total momentum= ', histMomentumTot[it])
     print('')
 
     if plot_each:
@@ -2158,7 +2166,19 @@ for it in range(1,nt+1):
             plt.savefig(filename1, dpi=ndpi)
 
             myplot_time_series(histMomentumTot, ylabel='p', title='')
-            filename1 = PATH1 + '@momentum_' + '%04d'%it + '.png'
+            filename1 = PATH1 + '@momentumTot_' + '%04d'%it + '.png'
+            plt.savefig(filename1, dpi=ndpi)
+
+            myplot_time_series(histMomentumx, ylabel='p', title='')
+            filename1 = PATH1 + '@momentumx_' + '%04d'%it + '.png'
+            plt.savefig(filename1, dpi=ndpi)
+
+            myplot_time_series(histMomentumy, ylabel='p', title='')
+            filename1 = PATH1 + '@momentumy_' + '%04d'%it + '.png'
+            plt.savefig(filename1, dpi=ndpi)
+
+            myplot_time_series(histMomentumz, ylabel='p', title='')
+            filename1 = PATH1 + '@momentumz_' + '%04d'%it + '.png'
             plt.savefig(filename1, dpi=ndpi)
 
             myplot_time_series(divE_rho, ylabel='div', title='')
